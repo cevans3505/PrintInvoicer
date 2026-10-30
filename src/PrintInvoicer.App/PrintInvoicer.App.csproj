@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PrintInvoicer.Core\PrintInvoicer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>PrintInvoicer</AssemblyName>
+    <RootNamespace>PrintInvoicer.App</RootNamespace>
+    <Product>PrintInvoicer</Product>
+    <Version>3.2.0</Version>
+    <!-- Application.ThemeMode (Fluent dark theme) is marked experimental in WPF. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <ApplicationIcon>Assets\PrintInvoicer.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Icon.xaml is the drawing tools\Make-Icon.ps1 renders into PrintInvoicer.ico; it is not app UI. -->
+    <Page Remove="Assets\Icon.xaml" />
+    <None Include="Assets\Icon.xaml" />
+    <Resource Include="Assets\PrintInvoicer.ico" />
+  </ItemGroup>
+
+</Project>

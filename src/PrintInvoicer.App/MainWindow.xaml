@@ -1,0 +1,402 @@
+﻿<Window x:Class="PrintInvoicer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:PrintInvoicer.App.ViewModels"
+        Title="PrintInvoicer" Icon="pack://application:,,,/PrintInvoicer;component/Assets/PrintInvoicer.ico" Height="680" Width="1100" MinWidth="800" MinHeight="480"
+        Background="{StaticResource WindowBg}" WindowStartupLocation="CenterScreen">
+    <TabControl Margin="8" Padding="10">
+
+        <!-- ============ Jobs ============ -->
+        <TabItem Header="Jobs" Padding="14,5">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="New job" Command="{Binding NewJobCommand}" Style="{StaticResource AccentButton}" />
+                        <Button Content="Open" Command="{Binding OpenJobCommand}" />
+                        <Button Content="Delete" Command="{Binding DeleteJobCommand}" />
+                    </StackPanel>
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding UnpaidSummary}" HorizontalAlignment="Right" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding PrintSummary}" HorizontalAlignment="Right" Foreground="{StaticResource Muted}" />
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- Filters; wraps onto a second line in a narrow window. -->
+                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <WrapPanel.Resources>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+                            <Setter Property="Margin" Value="0,0,8,4" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                        <Style x:Key="FilterLabel" TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                            <Setter Property="Foreground" Value="{StaticResource Muted}" />
+                            <Setter Property="Margin" Value="0,0,6,4" />
+                        </Style>
+                    </WrapPanel.Resources>
+                    <TextBlock Text="Search" Style="{StaticResource FilterLabel}" />
+                    <Grid Width="220" Margin="0,0,6,4" VerticalAlignment="Center">
+                        <TextBox x:Name="SearchBox" Text="{Binding Keywords, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Every word must appear. Put a phrase in &quot;quotes&quot; to match it whole." />
+                        <TextBlock Text="Words to find" Foreground="{StaticResource Muted}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False" Opacity="0.7">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <TextBlock Text="in" Style="{StaticResource FilterLabel}" />
+                    <ComboBox ItemsSource="{x:Static vm:MainViewModel.ColumnOptions}" DisplayMemberPath="Name" SelectedValuePath="Value"
+                              SelectedValue="{Binding SearchColumn}" Width="130" Margin="0,0,16,4" />
+                    <ComboBox ItemsSource="{x:Static vm:MainViewModel.PaidOptions}" DisplayMemberPath="Name" SelectedValuePath="Value"
+                              SelectedValue="{Binding PaidFilter}" Width="150" />
+                    <ComboBox ItemsSource="{x:Static vm:MainViewModel.StageOptions}" DisplayMemberPath="Name" SelectedValuePath="Value"
+                              SelectedValue="{Binding StageFilter}" Width="180" />
+                    <ComboBox ItemsSource="{x:Static vm:MainViewModel.PrintedOptions}" DisplayMemberPath="Name" SelectedValuePath="Value"
+                              SelectedValue="{Binding PrintedFilter}" Width="150" Margin="0,0,16,4" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Dates" Style="{StaticResource FilterLabel}" />
+                        <ComboBox ItemsSource="{x:Static vm:MainViewModel.DateRanges}" SelectedItem="{Binding DateRange}" Width="135"
+                                  ToolTip="Filters on the Date column: the invoice date, or the day a draft was created" />
+                        <DatePicker SelectedDate="{Binding FromDate}" Width="140" Margin="0,0,6,4" VerticalAlignment="Center" ToolTip="From (inclusive)" />
+                        <TextBlock Text="to" Style="{StaticResource FilterLabel}" />
+                        <DatePicker SelectedDate="{Binding ToDate}" Width="140" Margin="0,0,12,4" VerticalAlignment="Center" ToolTip="To (inclusive)" />
+                    </StackPanel>
+                    <Button Content="Clear filters" Command="{Binding ClearFiltersCommand}" Margin="0,0,8,4" VerticalAlignment="Center"
+                            Visibility="{Binding IsFiltered, Converter={StaticResource BoolToVis}}" />
+                </WrapPanel>
+
+                <!-- Actions for every selected row; Ctrl or Shift click to select several. -->
+                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="Selected jobs:" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="0,0,10,0" />
+                    <Button Content="Preview" Command="{Binding PreviewInvoicesCommand}"
+                            ToolTip="Open each selected invoice as it stands, without dating or finalizing it" />
+                    <Button Content="Finalize" Command="{Binding FinalizeInvoicesCommand}"
+                            ToolTip="Date each selected invoice today, finalize it, and open the PDF to send" />
+                    <Button Content="Open internal" Command="{Binding OpenInternalInvoicesCommand}"
+                            ToolTip="Regenerate and open the internal detail sheet for each selected job" />
+                    <Button Content="Print invoices" Command="{Binding PrintCustomerInvoicesCommand}"
+                            ToolTip="Print the final invoices from one print dialog; drafts can be finalized first" />
+                    <Button Content="Print internal" Command="{Binding PrintInternalInvoicesCommand}"
+                            ToolTip="Regenerate the internal detail sheets and print them all from one print dialog" />
+                    <Button Content="Mark printed" Command="{Binding MarkPrintedCommand}" Margin="12,0,8,0"
+                            ToolTip="Mark every selected job as printed" />
+                </WrapPanel>
+
+                <!-- Totals for the rows the filters leave visible. -->
+                <DockPanel DockPanel.Dock="Bottom" Margin="2,8,2,0">
+                    <TextBlock Foreground="{StaticResource Muted}" VerticalAlignment="Center">
+                        <Run Text="{Binding VisibleCount, Mode=OneWay}" /><Run Text="{Binding SelectionText, Mode=OneWay}" />
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding VisibleBreakdown}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,24,0" />
+                        <TextBlock Text="{Binding VisibleTotal}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
+                    </StackPanel>
+                </DockPanel>
+
+                <DataGrid x:Name="JobsGrid" ItemsSource="{Binding JobsView}" SelectedItem="{Binding SelectedJob}" AutoGenerateColumns="False"
+                          CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource Divider}" RowHeight="30"
+                          MouseDoubleClick="Jobs_DoubleClick" SelectionChanged="Jobs_SelectionChanged"
+                          Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Preview invoice" Command="{Binding PreviewInvoicesCommand}" />
+                            <MenuItem Header="Finalize invoice" Command="{Binding FinalizeInvoicesCommand}" />
+                            <MenuItem Header="Revert to draft" Command="{Binding RevertToDraftCommand}" />
+                            <MenuItem Header="Open internal sheet" Command="{Binding OpenInternalInvoicesCommand}" />
+                            <Separator />
+                            <MenuItem Header="Print invoices (customer)..." Command="{Binding PrintCustomerInvoicesCommand}" />
+                            <MenuItem Header="Print invoices (internal)..." Command="{Binding PrintInternalInvoicesCommand}" />
+                            <Separator />
+                            <MenuItem Header="Mark printed" Command="{Binding MarkPrintedCommand}" />
+                            <MenuItem Header="Mark not printed" Command="{Binding MarkNotPrintedCommand}" />
+                            <Separator />
+                            <MenuItem Header="Open job" Command="{Binding OpenJobCommand}" />
+                            <MenuItem Header="Delete" Command="{Binding DeleteJobCommand}" />
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <!-- The theme's selected row is near white, which hides the text; use a dark accent instead. -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#2A3038" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#24476B" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Foreground" Value="{StaticResource Text}" />
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                            <Setter Property="Padding" Value="4,0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridCell">
+                                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Printed" Width="76" SortMemberPath="Printed">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Printed, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" ToolTip="{Binding PrintedTip}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Paid" Width="50" SortMemberPath="Paid">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Paid, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" ToolTip="Tick when the shop has paid" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" IsReadOnly="True" Width="90" />
+                        <DataGridTextColumn Header="Date" Binding="{Binding Date}" IsReadOnly="True" Width="95" />
+                        <DataGridTextColumn Header="Job" Binding="{Binding Title}" IsReadOnly="True" Width="2*" />
+                        <DataGridTextColumn Header="Pieces" Binding="{Binding Pieces}" IsReadOnly="True" Width="3*" />
+                        <DataGridTextColumn Header="Total" Binding="{Binding TotalText}" IsReadOnly="True" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right" /></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" IsReadOnly="True" Width="125" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </TabItem>
+
+        <!-- ============ Materials ============ -->
+        <TabItem Header="Materials" Padding="14,5" DataContext="{Binding Filaments}">
+            <TabItem.Resources>
+                <Style x:Key="EditGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                    <Setter Property="AutoGenerateColumns" Value="False" />
+                    <Setter Property="CanUserAddRows" Value="False" />
+                    <Setter Property="CanUserDeleteRows" Value="False" />
+                    <Setter Property="SelectionMode" Value="Single" />
+                    <Setter Property="HeadersVisibility" Value="Column" />
+                    <Setter Property="GridLinesVisibility" Value="Horizontal" />
+                    <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Divider}" />
+                    <Setter Property="RowHeight" Value="30" />
+                    <Setter Property="Background" Value="{StaticResource CardBg}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+                </Style>
+            </TabItem.Resources>
+            <!-- UniformGrid skips a collapsed list, so the other one fills the tab. -->
+            <UniformGrid Columns="1">
+                <DockPanel Margin="0,0,0,12" Visibility="{Binding ShowFilaments, Converter={StaticResource BoolToVis}}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock Text="Filaments" Style="{StaticResource SectionHeader}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Add filament" Command="{Binding AddCommand}" Style="{StaticResource AccentButton}" />
+                            <Button Content="Delete" Command="{Binding DeleteCommand}" />
+                        </StackPanel>
+                        <TextBlock Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" TextWrapping="Wrap"
+                                   Text="Edits save automatically. Color is #RRGGBB and should match the AMS color in Bambu Studio for auto-matching." />
+                    </DockPanel>
+                    <DataGrid ItemsSource="{Binding Filaments}" SelectedItem="{Binding Selected}" Style="{StaticResource EditGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Vendor" Binding="{Binding Vendor}" Width="120" />
+                            <DataGridTextColumn Header="Material" Binding="{Binding Material}" Width="150" />
+                            <DataGridTextColumn Header="Color" Binding="{Binding ColorName}" Width="90" />
+                            <DataGridTemplateColumn Header="Hex" Width="105">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="4,0">
+                                            <Border Style="{StaticResource Swatch}" Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}" />
+                                            <TextBlock Text="{Binding ColorHex}" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding ColorHex, UpdateSourceTrigger=LostFocus}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Spool $" Binding="{Binding SpoolPrice, StringFormat=0.00}" Width="75" />
+                            <DataGridTextColumn Header="Spool g" Binding="{Binding SpoolGrams, StringFormat=0}" Width="70" />
+                            <DataGridTextColumn Header="Per kg" Binding="{Binding CostPerKg}" IsReadOnly="True" Width="75" />
+                            <DataGridCheckBoxColumn Header="Active" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="55" />
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+
+                <DockPanel Visibility="{Binding ShowResins, Converter={StaticResource BoolToVis}}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock Text="Resins" Style="{StaticResource SectionHeader}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Add resin" Command="{Binding AddResinCommand}" Style="{StaticResource AccentButton}" />
+                            <Button Content="Delete" Command="{Binding DeleteResinCommand}" />
+                        </StackPanel>
+                        <TextBlock Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" TextWrapping="Wrap"
+                                   Text="Bottle size in g or mL. Density (g/mL) turns the slicer's volume into weight for bottles sold by weight. A name that appears in the slicer's resin profile is picked automatically." />
+                    </DockPanel>
+                    <DataGrid ItemsSource="{Binding Resins}" SelectedItem="{Binding SelectedResin}" Style="{StaticResource EditGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Vendor" Binding="{Binding Vendor}" Width="110" />
+                            <DataGridTextColumn Header="Resin" Binding="{Binding Name}" Width="160" />
+                            <DataGridTextColumn Header="Color" Binding="{Binding ColorName}" Width="85" />
+                            <DataGridTextColumn Header="Bottle $" Binding="{Binding BottlePrice, StringFormat=0.00}" Width="75" />
+                            <DataGridTextColumn Header="Size" Binding="{Binding BottleSize, StringFormat=0.##}" Width="65" />
+                            <DataGridComboBoxColumn Header="Unit" ItemsSource="{x:Static vm:ResinRowViewModel.UnitOptions}"
+                                                    SelectedItemBinding="{Binding BottleUnit, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <DataGridTextColumn Header="g/mL" Binding="{Binding Density, StringFormat=0.00#}" Width="60" />
+                            <DataGridTextColumn Header="Per L" Binding="{Binding CostPerLiter}" IsReadOnly="True" Width="75" />
+                            <DataGridCheckBoxColumn Header="Active" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="65" />
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </UniformGrid>
+        </TabItem>
+
+        <!-- ============ Printers ============ -->
+        <TabItem Header="Printers" Padding="14,5" DataContext="{Binding Printers}">
+            <TabItem.Resources>
+                <Style x:Key="EditGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                    <Setter Property="AutoGenerateColumns" Value="False" />
+                    <Setter Property="CanUserAddRows" Value="False" />
+                    <Setter Property="CanUserDeleteRows" Value="False" />
+                    <Setter Property="SelectionMode" Value="Single" />
+                    <Setter Property="HeadersVisibility" Value="Column" />
+                    <Setter Property="GridLinesVisibility" Value="Horizontal" />
+                    <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Divider}" />
+                    <Setter Property="RowHeight" Value="30" />
+                    <Setter Property="Background" Value="{StaticResource CardBg}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+                </Style>
+            </TabItem.Resources>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="120" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="120" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Margin="0,0,0,8">
+                    <TextBlock Text="Printers" Style="{StaticResource SectionHeader}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Add FDM printer" Command="{Binding AddFdmPrinterCommand}" Style="{StaticResource AccentButton}" />
+                        <Button Content="Add resin printer" Command="{Binding AddResinPrinterCommand}" Style="{StaticResource AccentButton}" />
+                        <Button Content="Delete" Command="{Binding DeletePrinterCommand}" />
+                    </StackPanel>
+                    <TextBlock Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" TextWrapping="Wrap"
+                               Text="Edits save automatically. Waste and markup apply to your own material printed on that printer. Adding a sliced file for a new kind of printer sets one up for you." />
+                </DockPanel>
+                <DataGrid Grid.Row="1" ItemsSource="{Binding Printers}" SelectedItem="{Binding SelectedPrinter}" Style="{StaticResource EditGrid}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
+                        <DataGridComboBoxColumn Header="Type" ItemsSource="{x:Static vm:PrinterRowViewModel.TechnologyOptions}"
+                                                SelectedValuePath="Value" DisplayMemberPath="Name"
+                                                SelectedValueBinding="{Binding Technology, UpdateSourceTrigger=PropertyChanged}" Width="90" />
+                        <DataGridTextColumn Header="Machine $/hr" Binding="{Binding MachineRate, StringFormat=0.00}" Width="115" />
+                        <DataGridTextColumn Header="Watts" Binding="{Binding Watts, StringFormat=0.#}" Width="70" />
+                        <DataGridTextColumn Header="Waste %" Binding="{Binding WastePercent, StringFormat=0.##}" Width="75" />
+                        <DataGridTextColumn Header="Markup %" Binding="{Binding MarkupPercent, StringFormat=0.##}" Width="90" />
+                        <DataGridCheckBoxColumn Header="Active" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="65" />
+                        <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DockPanel Grid.Row="2" Margin="0,16,0,8">
+                    <TextBlock Text="Extra costs" Style="{StaticResource SectionHeader}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Add extra cost" Command="{Binding AddExtraCostCommand}" Style="{StaticResource AccentButton}" />
+                        <Button Content="Delete" Command="{Binding DeleteExtraCostCommand}" />
+                    </StackPanel>
+                    <TextBlock Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" TextWrapping="Wrap"
+                               Text="Anything else you charge for, such as IPA and gloves per print, film wear per print hour, or wash and cure per job. Added to every matching job; untick one in a job to leave it off that job." />
+                </DockPanel>
+                <DataGrid Grid.Row="3" ItemsSource="{Binding ExtraCosts}" SelectedItem="{Binding SelectedExtraCost}" Style="{StaticResource EditGrid}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
+                        <DataGridTextColumn Header="Cost $" Binding="{Binding Amount, StringFormat=0.00##}" Width="75" />
+                        <DataGridComboBoxColumn Header="Charged" ItemsSource="{x:Static vm:ExtraCostRowViewModel.BasisOptions}"
+                                                SelectedValuePath="Value" DisplayMemberPath="Name"
+                                                SelectedValueBinding="{Binding Basis, UpdateSourceTrigger=PropertyChanged}" Width="160" />
+                        <DataGridComboBoxColumn Header="Applies to" ItemsSource="{x:Static vm:ExtraCostRowViewModel.AppliesToOptions}"
+                                                SelectedValuePath="Value" DisplayMemberPath="Name"
+                                                SelectedValueBinding="{Binding AppliesTo, UpdateSourceTrigger=PropertyChanged}" Width="120" />
+                        <DataGridCheckBoxColumn Header="Active" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="65" />
+                        <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+
+        <!-- ============ Settings ============ -->
+        <TabItem Header="Settings" Padding="14,5" DataContext="{Binding Settings}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel MaxWidth="1200" HorizontalAlignment="Left">
+                    <StackPanel.Resources>
+                        <Style TargetType="Label" BasedOn="{StaticResource DefaultLabelStyle}"><Setter Property="Width" Value="230" /><Setter Property="VerticalAlignment" Value="Center" /></Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                            <Setter Property="Width" Value="120" />
+                            <Setter Property="Margin" Value="0,2" />
+                        </Style>
+                    </StackPanel.Resources>
+
+                    <TextBlock Text="Power" Style="{StaticResource SectionHeader}" Margin="0,0,0,6" />
+                    <StackPanel Orientation="Horizontal"><Label Content="Electricity ($/kWh)" /><TextBox Text="{Binding Model.ElectricityPerKwh}" /></StackPanel>
+                    <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="5,2,0,0"
+                               Text="Machine rates, power draw, waste and markup are set per printer on the Printers tab." />
+
+                    <TextBlock Text="Labor and fees" Style="{StaticResource SectionHeader}" />
+                    <StackPanel Orientation="Horizontal"><Label Content="3D modeling ($/hr)" /><TextBox Text="{Binding Model.ModelingRatePerHour}" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Slicing (per unique part)" /><TextBox Text="{Binding Model.SlicingFeePerPart}" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Post-processing (flat per job)" /><TextBox Text="{Binding Model.PostProcessingFee}" /></StackPanel>
+
+                    <TextBlock Text="Invoice" Style="{StaticResource SectionHeader}" />
+                    <StackPanel Orientation="Horizontal"><Label Content="Your name (invoice header)" /><TextBox Text="{Binding Model.BusinessName}" Width="260" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Contact line" /><TextBox Text="{Binding Model.ContactLine}" Width="260" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Default customer" /><TextBox Text="{Binding Model.DefaultCustomer}" Width="260" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Payment terms" /><TextBox Text="{Binding Model.PaymentTerms}" Width="260" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Invoice number prefix" /><TextBox Text="{Binding Model.InvoicePrefix}" />
+                        <TextBlock Text="{}{yyyy} becomes the year" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Next invoice sequence" /><TextBox Text="{Binding Model.NextInvoiceNumber}" ToolTip="New invoices continue from the highest saved number. Set this higher to skip ahead; a lower value has no effect." />
+                        <TextBlock Text="{Binding NextInvoicePreview}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Save PDFs to" /><TextBox Text="{Binding InvoiceFolder}" Width="Auto" MinWidth="300" />
+                        <Button Content="Open" Command="{Binding OpenInvoiceFolderCommand}" Margin="8,2,0,2" MinWidth="50" /></StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Button Content="Save settings" Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" />
+                        <Button Content="Undo changes" Command="{Binding RevertCommand}" />
+                        <TextBlock Text="{Binding SavedText}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                    </StackPanel>
+
+                    <TextBlock Text="Data" Style="{StaticResource SectionHeader}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Muted}">
+                        <Run Text="Everything is stored in" /> <Run Text="{Binding DatabasePath, Mode=OneWay}" FontFamily="Consolas" />
+                        <Run Text=". Back up that file to keep your jobs, printers and materials." />
+                    </TextBlock>
+                    <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+    </TabControl>
+</Window>
