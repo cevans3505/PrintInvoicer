@@ -22,7 +22,14 @@ public partial class MainWindow : Window
             },
         };
         DataContext = _vm;
+        Loaded += async (_, _) =>
+        {
+            if (CheckForUpdatesOnLaunch) await _vm.Updates.CheckOnStartupAsync(App.Db.LoadSettings().CheckForUpdates);
+        };
     }
+
+    /// <summary>Off in test harnesses, which must not reach the network or touch this PC's update state.</summary>
+    public static bool CheckForUpdatesOnLaunch { get; set; } = true;
 
     private void Jobs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
         _vm.SetSelection(JobsGrid.SelectedItems.OfType<JobRowViewModel>());

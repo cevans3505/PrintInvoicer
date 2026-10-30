@@ -24,6 +24,9 @@ public partial class MainViewModel : ObservableObject
     public PrintersViewModel Printers { get; }
     public SettingsViewModel Settings { get; }
 
+    /// <summary>New-release notice; replaceable so tests can check without the network.</summary>
+    [ObservableProperty] private UpdateService _updates = new();
+
     [ObservableProperty] private JobRowViewModel? _selectedJob;
     [ObservableProperty] private string _unpaidSummary = "";
     [ObservableProperty] private string _printSummary = "";

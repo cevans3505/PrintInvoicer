@@ -194,6 +194,7 @@ public class Database
             object? parsed = p.PropertyType == typeof(decimal) ? decimal.Parse(v, CultureInfo.InvariantCulture)
                 : p.PropertyType == typeof(int) ? int.Parse(v, CultureInfo.InvariantCulture)
                 : p.PropertyType == typeof(string) ? v
+                : p.PropertyType == typeof(bool) ? bool.Parse(v)
                 : null;
             if (parsed != null) p.SetValue(s, parsed);
         }

@@ -18,7 +18,7 @@
     <AssemblyName>PrintInvoicer</AssemblyName>
     <RootNamespace>PrintInvoicer.App</RootNamespace>
     <Product>PrintInvoicer</Product>
-    <Version>3.2.0</Version>
+    <Version>3.3.0</Version>
     <!-- Application.ThemeMode (Fluent dark theme) is marked experimental in WPF. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>

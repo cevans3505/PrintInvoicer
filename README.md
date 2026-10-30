@@ -17,8 +17,20 @@ This runs the tests, builds a self-contained `PrintInvoicer.exe` (no .NET instal
 
 Building needs the .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`).
 
-To set it up on someone else's PC, give them `PrintInvoicer.exe` from the `publish` folder (or the zip in `dist`). It runs
-from anywhere and keeps its own data in their `Documents\PrintInvoicer`.
+To set it up on someone else's PC, send them the [latest release](https://github.com/cevans3505/PrintInvoicer/releases/latest).
+The zip holds `PrintInvoicer.exe`, which runs from anywhere and keeps its own data in their `Documents\PrintInvoicer`.
+
+### Updates
+
+When the app starts it asks GitHub, at most once a day, whether a newer release exists, and shows a bar at the top of
+the window if so. **Download** opens the release page; nothing is downloaded or installed automatically. **Later** hides
+the bar until the next start. Settings has the on/off switch and a **Check now** button. The last answer is kept in
+`%LOCALAPPDATA%\PrintInvoicer\update-check.json`.
+
+Only published releases are seen, so a new version reaches other installs once it is released:
+bump `<Version>` in `src/PrintInvoicer.App/PrintInvoicer.App.csproj`, run `publish.ps1`, zip `publish\PrintInvoicer.exe`
+with `dist\Read me.txt`, and create a GitHub release tagged `v<version>` with the zip attached.
+A fork that publishes its own releases should change `UpdateService.Repository`.
 
 ## Setting up
 

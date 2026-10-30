@@ -20,6 +20,10 @@ public class AppSettings
     public int NextInvoiceNumber { get; set; } = 1;
     public string InvoiceFolder { get; set; } = "";
 
+    // Updates
+    /// <summary>Ask GitHub for a newer release when the app starts (at most once a day).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
     /// <summary>Builds an invoice number like 2026-001 from the prefix (which may contain {yyyy}) and a sequence.</summary>
     public string FormatInvoiceNumber(int sequence, DateTime date) => InvoicePrefixFor(date) + sequence.ToString("000");
 

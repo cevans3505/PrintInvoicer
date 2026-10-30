@@ -33,11 +33,14 @@ public sealed class DatabaseTests : IDisposable
         var s = db.LoadSettings();
         s.ElectricityPerKwh = 0.196m;
         s.PaymentTerms = "Due on receipt";
+        Assert.True(s.CheckForUpdates);
+        s.CheckForUpdates = false;
         db.SaveSettings(s);
 
         var back = db.LoadSettings();
         Assert.Equal(0.196m, back.ElectricityPerKwh);
         Assert.Equal("Due on receipt", back.PaymentTerms);
+        Assert.False(back.CheckForUpdates);
     }
 
     [Fact]
