@@ -58,7 +58,8 @@ public static class JobBuilder
                     SlicedMl = sp.Resin?.Ml ?? 0,
                     ResinId = ResinMatcher.Match(profile, resinList, remembered)?.Id,
                 };
-                notes.Add($"{fileName}: resin files do not say how many parts are on the plate, so it was set to 1. Set the real count.");
+                // The file does not record how many parts are on the plate; the job window asks for it.
+                plate.PartsCountConfirmed = false;
             }
 
             foreach (var sf in sp.Filaments)

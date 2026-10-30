@@ -31,7 +31,7 @@ public sealed class PriceSnapshotTests : IDisposable
         var job = new Job { Title = "Brushes", InvoiceNumber = "2026-010" };
         JobBuilder.AddFile(job, BambuFileReader.Read(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Wire_Brush_Insert.gcode.3mf")),
             db.GetFilaments(), new Dictionary<string, long>(), printerId: fdm.Id);
-        JobBuilder.AddFile(job, GooFileReader.Parse("clip.goo", ResinTests.GooHeader(profile: "Standard resin")), [],
+        JobBuilder.AddFile(job, GooFileReader.Parse("clip.goo", TestFiles.GooHeader(profile: "Standard resin")), [],
             new Dictionary<string, long>(), db.GetResins(), resinPrinter.Id);
         db.SaveJob(job);
         return (db, job);

@@ -156,7 +156,25 @@ public partial class PlateViewModel : ObservableObject
     public int PartsPerPlate
     {
         get => Plate.PartsPerPlate;
-        set { if (SetProperty(Plate.PartsPerPlate, Math.Max(0, value), Plate, (p, v) => p.PartsPerPlate = v)) { OnPropertyChanged(nameof(FailedOfText)); _editor.Changed(); } }
+        set
+        {
+            bool changed = SetProperty(Plate.PartsPerPlate, Math.Max(0, value), Plate, (p, v) => p.PartsPerPlate = v);
+            // Typing a count, even the same one, means someone has looked at it.
+            if (changed || !Plate.PartsCountConfirmed) ConfirmCount();
+            else return;
+            OnPropertyChanged(nameof(FailedOfText));
+        }
+    }
+
+    public bool IsCountUnconfirmed => !Plate.PartsCountConfirmed;
+
+    /// <summary>The count shown is right; clears the resin part-count warning.</summary>
+    [RelayCommand]
+    private void ConfirmCount()
+    {
+        Plate.PartsCountConfirmed = true;
+        OnPropertyChanged(nameof(IsCountUnconfirmed));
+        _editor.Changed();
     }
 
     /// <summary>Print time as h:mm. Typing a different value overrides the slicer estimate.</summary>

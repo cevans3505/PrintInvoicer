@@ -28,6 +28,8 @@ public partial class MainWindow : Window
         };
     }
 
+    public MainViewModel ViewModel => _vm;
+
     /// <summary>Off in test harnesses, which must not reach the network or touch this PC's update state.</summary>
     public static bool CheckForUpdatesOnLaunch { get; set; } = true;
 

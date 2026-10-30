@@ -103,6 +103,12 @@ public class JobPlate
 
     public bool IsManual => string.IsNullOrEmpty(SourceFile);
 
+    /// <summary>
+    /// False for a plate read from a resin file until someone sets or confirms how many parts are on it: resin files do
+    /// not record it, and the per-piece price is only right if it is.
+    /// </summary>
+    public bool PartsCountConfirmed { get; set; } = true;
+
     public int SlicedSeconds { get; set; }
     public int? OverrideSeconds { get; set; }
     public byte[]? Thumbnail { get; set; }

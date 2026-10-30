@@ -334,6 +334,21 @@ public partial class MainViewModel : ObservableObject
     private bool FinalizeAll(IReadOnlyList<Job> jobs)
     {
         if (!InvoiceActions.ConfirmBusinessDetails(_db.LoadSettings())) return false;
+
+        // The same check the job window makes before finalizing.
+        var book = _db.LoadPriceBook();
+        var warned = jobs.Where(j => !j.Finalized)
+            .Select(j => (Job: j, Warnings: PricingCalculator.Calculate(j, book).Warnings))
+            .Where(x => x.Warnings.Count > 0)
+            .ToList();
+        if (warned.Count > 0)
+        {
+            string list = string.Join("\n\n", warned.Select(x => $"{Label(x.Job)}:\n  " + string.Join("\n  ", x.Warnings)));
+            if (MessageBox.Show($"These jobs have warnings:\n\n{list}\n\nFinalize anyway?", "Finalize invoices",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return false;
+        }
+
         var today = DateTime.Today;
         if (InvoiceActions.AskRedate(jobs, today) is not bool redate) return false;
         foreach (var job in jobs)

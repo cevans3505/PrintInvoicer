@@ -12,7 +12,8 @@ if (Get-Process PrintInvoicer -ErrorAction SilentlyContinue) {
     throw 'PrintInvoicer is running. Close it and run this again.'
 }
 
-& dotnet test (Join-Path $root 'tests\PrintInvoicer.Tests') --nologo
+# Unit tests and the offscreen screen tests (no windows appear).
+& dotnet test (Join-Path $root 'PrintInvoicer.sln') --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed; not publishing.' }
 
 if (Test-Path $out) { Remove-Item (Join-Path $out '*') -Recurse -Force }

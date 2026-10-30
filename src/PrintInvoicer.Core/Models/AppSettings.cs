@@ -20,6 +20,9 @@ public class AppSettings
     public int NextInvoiceNumber { get; set; } = 1;
     public string InvoiceFolder { get; set; } = "";
 
+    /// <summary>Where daily backups go; blank means a Backups folder next to the database.</summary>
+    public string BackupFolder { get; set; } = "";
+
     // Updates
     /// <summary>Ask GitHub for a newer release when the app starts (at most once a day).</summary>
     public bool CheckForUpdates { get; set; } = true;

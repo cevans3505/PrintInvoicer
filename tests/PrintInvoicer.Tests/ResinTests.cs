@@ -20,40 +20,6 @@ public sealed class ResinTests : IDisposable
         Directory.Delete(_dir, recursive: true);
     }
 
-    /// <summary>
-    /// A .goo header laid out per ELEGOO's GOO spec V1.2, with values like a real Saturn 4 Ultra file
-    /// (CHITUBOX, 3032 layers at 0.05 mm, 5 h 31 min, 37.2 mL).
-    /// </summary>
-    internal static byte[] GooHeader(string printer = "ELEGOO Saturn 4 Ultra", string profile = "Creality Blue Fast resin",
-        int layers = 3032, float layerHeight = 0.05f, int seconds = 19860, float volumeMm3 = 37205.8f, ushort background = 0xFFFF)
-    {
-        var h = new byte[GooFileReader.HeaderLength];
-        void Str(int at, string s) => Encoding.UTF8.GetBytes(s).CopyTo(h, at);
-        Str(0, "V3.0");
-        new byte[] { 0x07, 0x00, 0x00, 0x00, 0x44, 0x4C, 0x50, 0x00 }.CopyTo(h, 4);
-        Str(12, "CHITUBOX Basic v2.3.1");
-        Str(92, printer);
-        Str(124, printer);
-        Str(156, profile);
-
-        // Previews: a flat background with a blue square in the middle of the big one.
-        for (int i = 0; i < 116 * 116; i++) BinaryPrimitives.WriteUInt16BigEndian(h.AsSpan(194 + i * 2), background);
-        h[194 + 2 * 116 * 116] = 0x0D; h[194 + 2 * 116 * 116 + 1] = 0x0A;
-        int big = 27108;
-        for (int y = 0; y < 290; y++)
-            for (int x = 0; x < 290; x++)
-                BinaryPrimitives.WriteUInt16BigEndian(h.AsSpan(big + (y * 290 + x) * 2), x is > 100 and < 190 && y is > 100 and < 190 ? (ushort)0x001F : background);
-        h[big + 2 * 290 * 290] = 0x0D; h[big + 2 * 290 * 290 + 1] = 0x0A;
-
-        int layersAt = 195310;
-        BinaryPrimitives.WriteInt32BigEndian(h.AsSpan(layersAt), layers);
-        BinaryPrimitives.WriteSingleBigEndian(h.AsSpan(layersAt + 22), layerHeight);
-        BinaryPrimitives.WriteInt32BigEndian(h.AsSpan(layersAt + 136), seconds);
-        BinaryPrimitives.WriteSingleBigEndian(h.AsSpan(layersAt + 140), volumeMm3);
-        BinaryPrimitives.WriteSingleBigEndian(h.AsSpan(layersAt + 144), volumeMm3 / 1000f);
-        return h;
-    }
-
     private string WriteGoo(string name, byte[] header)
     {
         string path = Path.Combine(_dir, name);
@@ -64,7 +30,7 @@ public sealed class ResinTests : IDisposable
     [Fact]
     public void Reads_goo_header()
     {
-        var file = GooFileReader.Read(WriteGoo("garklein.stl_0.05_1.2_2025_06_02_12_57_00.goo", GooHeader()));
+        var file = GooFileReader.Read(WriteGoo("garklein.stl_0.05_1.2_2025_06_02_12_57_00.goo", TestFiles.GooHeader()));
 
         Assert.Equal(PrintTechnology.Resin, file.Technology);
         Assert.Equal("ELEGOO Saturn 4 Ultra", file.PrinterModel);
@@ -80,7 +46,7 @@ public sealed class ResinTests : IDisposable
     [Fact]
     public void Preview_background_becomes_transparent()
     {
-        var png = GooFileReader.Read(WriteGoo("p.goo", GooHeader(background: 0x0000))).Plates[0].Thumbnail!;
+        var png = GooFileReader.Read(WriteGoo("p.goo", TestFiles.GooHeader(background: 0x0000))).Plates[0].Thumbnail!;
         Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, png[..4]);
         // IHDR: 290 x 290, RGBA.
         Assert.Equal(290, BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16)));
@@ -90,7 +56,7 @@ public sealed class ResinTests : IDisposable
     [Fact]
     public void Rejects_files_that_are_not_goo()
     {
-        var bad = GooHeader();
+        var bad = TestFiles.GooHeader();
         bad[5] = 0x99;
         Assert.Throws<InvalidDataException>(() => GooFileReader.Read(WriteGoo("bad.goo", bad)));
         Assert.Throws<InvalidDataException>(() => GooFileReader.Read(WriteGoo("short.goo", new byte[100])));
@@ -123,11 +89,12 @@ public sealed class ResinTests : IDisposable
         printer.Id = 3;
         var book = new PriceBook(new AppSettings(), resins: [BlueResin()], printers: [printer], extraCosts: extras);
         var job = new Job { Title = "Clips" };
-        var file = GooFileReader.Parse("clip.goo", GooHeader(seconds: 7200, volumeMm3: 40000f));
+        var file = GooFileReader.Parse("clip.goo", TestFiles.GooHeader(seconds: 7200, volumeMm3: 40000f));
         JobBuilder.AddFile(job, file, [], new Dictionary<string, long>(), book.Resins.Values, printer.Id);
         var plate = job.Parts[0].Plates[0];
         plate.Copies = copies;
         plate.PartsPerPlate = perPlate;
+        plate.PartsCountConfirmed = true;   // as the job window does when the count is typed
         return (job, book);
     }
 
@@ -146,6 +113,23 @@ public sealed class ResinTests : IDisposable
         Assert.Equal(2m * 0.1m * 0.20m * 2, pq.Electricity); // 100 W
         Assert.Equal(8, quote.Parts[0].Quantity);
         Assert.Equal(80m, quote.Parts[0].Ml);
+    }
+
+    [Fact]
+    public void Resin_part_count_must_be_confirmed()
+    {
+        var (job, book) = ResinJob();
+        var plate = job.Parts[0].Plates[0];
+        plate.PartsCountConfirmed = false;                 // as added from the file
+        Assert.Contains(PricingCalculator.Calculate(job, book).Warnings, w => w.Contains("how many parts are on the plate"));
+        plate.PartsCountConfirmed = true;
+        Assert.Empty(PricingCalculator.Calculate(job, book).Warnings);
+
+        // Straight from a file it starts unconfirmed; typed-in and FDM plates do not.
+        var fresh = new Job();
+        JobBuilder.AddFile(fresh, GooFileReader.Parse("x.goo", TestFiles.GooHeader()), [], new Dictionary<string, long>());
+        Assert.False(fresh.Parts[0].Plates[0].PartsCountConfirmed);
+        Assert.True(JobBuilder.ManualPlate(new Printer { Technology = PrintTechnology.Resin }).PartsCountConfirmed);
     }
 
     [Fact]
@@ -216,7 +200,7 @@ public sealed class ResinTests : IDisposable
     [Fact]
     public void Chooses_printer_by_name_then_kind()
     {
-        var file = GooFileReader.Parse("x.goo", GooHeader(printer: "ELEGOO Mars 5 Ultra"));
+        var file = GooFileReader.Parse("x.goo", TestFiles.GooHeader(printer: "ELEGOO Mars 5 Ultra"));
         var fdm = new Printer { Id = 1, Name = "Bambu Lab H2D", Technology = PrintTechnology.Fdm };
         var saturn = new Printer { Id = 2, Name = "ELEGOO Saturn 4 Ultra", Technology = PrintTechnology.Resin };
         var mars = new Printer { Id = 3, Name = "ELEGOO Mars 5 Ultra", Technology = PrintTechnology.Resin };
@@ -265,7 +249,7 @@ public sealed class ResinTests : IDisposable
         db.SaveExtraCost(extra);
 
         var job = new Job { Title = "Clips", InvoiceNumber = "2026-050" };
-        JobBuilder.AddFile(job, GooFileReader.Parse("clip.goo", GooHeader()), [], db.GetMappings(), db.GetResins(), printer.Id);
+        JobBuilder.AddFile(job, GooFileReader.Parse("clip.goo", TestFiles.GooHeader()), [], db.GetMappings(), db.GetResins(), printer.Id);
         job.Parts[0].Plates[0].Resin!.OverrideMl = 41.5m;
         job.ExcludedExtraCosts.Add(extra.Id);
         db.SaveJob(job);
@@ -281,6 +265,10 @@ public sealed class ResinTests : IDisposable
         Assert.Equal(41.5m, plate.Resin.OverrideMl);
         Assert.Equal(resin.Id, plate.Resin.ResinId);
         Assert.Equal(new[] { extra.Id }, back.ExcludedExtraCosts);
+        Assert.False(plate.PartsCountConfirmed);
+        back.Parts[0].Plates[0].PartsCountConfirmed = true;
+        db.SaveJob(back);
+        Assert.True(db.GetJobs().Single().Parts[0].Plates[0].PartsCountConfirmed);
 
         var book = db.LoadPriceBook();
         Assert.Equal(0.5m, Assert.Single(book.ExtraCosts).Cost);

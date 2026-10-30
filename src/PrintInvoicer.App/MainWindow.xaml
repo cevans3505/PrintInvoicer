@@ -403,6 +403,18 @@
                         <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
                     </StackPanel>
 
+                    <TextBlock Text="Backups" Style="{StaticResource SectionHeader}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,6"
+                               Text="A copy of everything is saved once a day when the app opens; the newest 14 are kept, plus any you make with Back up now. Point the folder at a NAS or cloud folder (OneDrive, Dropbox) so the copies survive a dead drive, then Save settings." />
+                    <StackPanel Orientation="Horizontal"><Label Content="Back up to" /><TextBox Text="{Binding BackupFolder}" Width="Auto" MinWidth="300" />
+                        <Button Content="Open" Command="{Binding OpenBackupFolderCommand}" Margin="8,2,0,2" MinWidth="50" /></StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Back up now" Command="{Binding BackUpNowCommand}" />
+                        <Button Content="Restore a backup..." Command="{Binding RestoreBackupCommand}"
+                                ToolTip="Replace all data with a backup. Your current data is backed up first." />
+                        <TextBlock Text="{Binding BackupStatus}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" TextWrapping="Wrap" MaxWidth="560" />
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                         <Button Content="Save settings" Command="{Binding SaveCommand}" Style="{StaticResource AccentButton}" />
                         <Button Content="Undo changes" Command="{Binding RevertCommand}" />

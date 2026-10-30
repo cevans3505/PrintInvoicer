@@ -226,6 +226,12 @@
                                                                 <Button Content="reset" Command="{Binding ResetTimeCommand}" Style="{StaticResource LinkButton}"
                                                                         Visibility="{Binding IsTimeOverridden, Converter={StaticResource BoolToVis}}" />
                                                             </WrapPanel>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                                        Visibility="{Binding IsCountUnconfirmed, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock Text="Resin files do not record how many parts are on the plate. Set it above, or confirm"
+                                                                           Foreground="{StaticResource Warn}" VerticalAlignment="Center" />
+                                                                <Button Content="the count is right" Command="{Binding ConfirmCountCommand}" Style="{StaticResource LinkButton}" />
+                                                            </StackPanel>
 
                                                             <!-- Resin plates: one resin for the vat. Columns match the slot rows below. -->
                                                             <Grid Margin="0,8,0,0" Visibility="{Binding IsResin, Converter={StaticResource BoolToVis}}">

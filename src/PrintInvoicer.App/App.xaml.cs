@@ -1,12 +1,36 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.IO;
 using PrintInvoicer.Core.Data;
+using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.App;
 
 public partial class App : Application
 {
-    public static Database Db { get; private set; } = null!;
+    public static Database Db { get; internal set; } = null!;
+
+    /// <summary>Why the last automatic backup failed, if it did; shown on the Settings tab.</summary>
+    public static string? BackupProblem { get; set; }
+
+    /// <summary>The folder backups go to: the one set in Settings, or Backups next to the database.</summary>
+    public static string BackupFolder(Database db, AppSettings s) =>
+        string.IsNullOrWhiteSpace(s.BackupFolder) ? DatabaseBackup.DefaultFolder(db.FilePath) : s.BackupFolder;
+
+    /// <summary>Today's backup, made in the background so a slow network folder never delays the window.</summary>
+    public static Task BackUpTodayAsync(Database db) => Task.Run(() =>
+    {
+        string folder = BackupFolder(db, db.LoadSettings());
+        try
+        {
+            DatabaseBackup.DailyIfDue(db.FilePath, folder, DateTime.Now);
+            BackupProblem = null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            BackupProblem = $"The automatic backup to {folder} failed: {ex.Message}";
+        }
+    });
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -32,7 +56,10 @@ public partial class App : Application
             return;
         }
 
-        new MainWindow().Show();
+        var backup = BackUpTodayAsync(Db);
+        var main = new MainWindow();
+        main.Show();
+        backup.ContinueWith(_ => main.Dispatcher.BeginInvoke(() => main.ViewModel.Settings.RefreshBackupStatus()));
     }
 
     /// <summary>

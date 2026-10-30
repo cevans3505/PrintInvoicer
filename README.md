@@ -51,10 +51,11 @@ A fork that publishes its own releases should change `UpdateService.Repository`.
      resin volume, layers and the preview are read from the file.
    - Anything else (CHITUBOX `.ctb`, Anycubic, Lychee, other slicers): **Add plate by hand**, pick the printer, and type
      the print time and grams or mL.
-2. Per plate, set how many times it is printed and how many parts are on it (resin files do not record this), and pick the
+2. Per plate, set how many times it is printed and how many parts are on it, and pick the
    printer if you have more than one of that kind. Per AMS slot or resin, check the material pick and tick
    **Shop supplied** when the shop provided it. Typing grams, mL or print time overrides the slicer value (highlighted,
-   with a reset link).
+   with a reset link). Resin files do not record how many parts are on the plate, so a resin plate asks for the count
+   and finalizing warns until it is set or confirmed.
 3. Enter modeling hours and tick post-processing if they apply. Untick any extra cost that should be left off this job.
 4. Jobs start as drafts. **Preview invoice** shows the invoice as it stands (marked as a preview, undated, saved to a temp
    folder). When the parts are ready to deliver, **Finalize invoice** dates it today and writes the PDF to send into the
@@ -97,7 +98,12 @@ match the other and save.
 ## Data
 
 Everything lives in `Documents\PrintInvoicer\printinvoicer.db` (SQLite). PDFs go to `Documents\PrintInvoicer\Invoices`
-unless changed in Settings. Back up the `Documents\PrintInvoicer` folder.
+unless changed in Settings.
+
+**Backups:** each day the app first opens, it copies the database to `Documents\PrintInvoicer\Backups` and keeps the
+newest 14 daily copies, plus any made with **Back up now** (never pruned). Set **Back up to** in Settings to a NAS or
+cloud-synced folder so the copies survive a failed drive. **Restore a backup...** replaces all data with a chosen copy,
+saving the current data first as a `before-restore` copy, and restarts the app. Copies are ordinary SQLite files.
 
 Window sizes and positions are remembered per PC in `%LOCALAPPDATA%\PrintInvoicer\window-layout.json`. Delete it to go
 back to the default layout.
@@ -107,13 +113,17 @@ The `.goo` reader follows ELEGOO's published [GOO format spec](https://github.co
 ## Development
 
 ```powershell
-dotnet test
+dotnet test PrintInvoicer.sln
 dotnet run --project src\PrintInvoicer.App
 ```
 
 - `src/PrintInvoicer.Core`: file reader (`Slicing/BambuFileReader.cs`), pricing (`Pricing/PricingCalculator.cs`), storage (`Data/Database.cs`)
 - `src/PrintInvoicer.App`: WPF UI and QuestPDF invoices
-- `tests/PrintInvoicer.Tests`: includes a regression test that matches the CS-001 job from the original costing workbook
+- `tests/PrintInvoicer.Tests`: pricing, file readers, storage, backups; includes a regression test that matches the CS-001
+  job from the original costing workbook
+- `tests/PrintInvoicer.UiTests`: opens the real windows and renders every invoice kind on sample data, offscreen (nothing
+  appears on screen), and fails on any WPF binding error. Screenshots land in its `bin\...\screens` folder for a look.
+  `publish.ps1` runs both test projects before building.
 
 ## License
 

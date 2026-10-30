@@ -8,3 +8,6 @@ using System.Windows;
                                                 //(used if a resource is not found in the page,
                                                 // app, or any theme specific resource dictionaries)
 )]
+
+// The screen tests set up the app the way OnStartup does, without showing anything.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("PrintInvoicer.UiTests")]

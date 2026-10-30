@@ -125,6 +125,7 @@ public class Database
         AddColumnIfMissing(c, "plates", "resin_override_ml", "TEXT");
         AddColumnIfMissing(c, "plates", "resin_id", "INTEGER");
         AddColumnIfMissing(c, "plates", "resin_customer_supplied", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(c, "plates", "parts_confirmed", "INTEGER NOT NULL DEFAULT 1");
 
         MovePrintingRatesToPrinter(c);
 
@@ -602,7 +603,7 @@ public class Database
 
         using (var cmd = c.CreateCommand())
         {
-            cmd.CommandText = "SELECT id, part_id, source_file, plate_index, copies, parts_per_plate, sliced_seconds, override_seconds, thumbnail, has_failures, failed_count, failure_note, technology, printer_id, layer_count, layer_height, resin_profile, resin_sliced_ml, resin_override_ml, resin_id, resin_customer_supplied FROM plates ORDER BY part_id, sort";
+            cmd.CommandText = "SELECT id, part_id, source_file, plate_index, copies, parts_per_plate, sliced_seconds, override_seconds, thumbnail, has_failures, failed_count, failure_note, technology, printer_id, layer_count, layer_height, resin_profile, resin_sliced_ml, resin_override_ml, resin_id, resin_customer_supplied, parts_confirmed FROM plates ORDER BY part_id, sort";
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
@@ -623,6 +624,7 @@ public class Database
                     PrinterId = r.IsDBNull(13) ? null : r.GetInt64(13),
                     LayerCount = r.GetInt32(14),
                     LayerHeightMm = Dec(r.GetString(15)),
+                    PartsCountConfirmed = r.GetInt64(21) != 0,
                 };
                 if (p.Technology == PrintTechnology.Resin)
                 {
@@ -713,8 +715,8 @@ public class Database
                 plate.Id = Scalar<long>(c, """
                     INSERT INTO plates(part_id, sort, source_file, plate_index, copies, parts_per_plate, sliced_seconds, override_seconds, thumbnail,
                         has_failures, failed_count, failure_note, technology, printer_id, layer_count, layer_height,
-                        resin_profile, resin_sliced_ml, resin_override_ml, resin_id, resin_customer_supplied)
-                    VALUES ($p, $s, $f, $i, $c, $n, $sec, $ov, $th, $hf, $fc, $fn, $tech, $printer, $layers, $lh, $rp, $rml, $rov, $rid, $rcs) RETURNING id
+                        resin_profile, resin_sliced_ml, resin_override_ml, resin_id, resin_customer_supplied, parts_confirmed)
+                    VALUES ($p, $s, $f, $i, $c, $n, $sec, $ov, $th, $hf, $fc, $fn, $tech, $printer, $layers, $lh, $rp, $rml, $rov, $rid, $rcs, $pc) RETURNING id
                     """,
                     ("$p", part.Id), ("$s", li), ("$f", plate.SourceFile), ("$i", plate.PlateIndex), ("$c", plate.Copies),
                     ("$n", plate.PartsPerPlate), ("$sec", plate.SlicedSeconds), ("$ov", plate.OverrideSeconds), ("$th", plate.Thumbnail),
@@ -722,7 +724,7 @@ public class Database
                     ("$tech", (int)plate.Technology), ("$printer", plate.PrinterId), ("$layers", plate.LayerCount), ("$lh", Str(plate.LayerHeightMm)),
                     ("$rp", plate.Resin?.SlicerProfile ?? ""), ("$rml", Str(plate.Resin?.SlicedMl ?? 0)),
                     ("$rov", plate.Resin?.OverrideMl is decimal rov ? Str(rov) : null), ("$rid", plate.Resin?.ResinId),
-                    ("$rcs", plate.Resin?.CustomerSupplied == true ? 1 : 0));
+                    ("$rcs", plate.Resin?.CustomerSupplied == true ? 1 : 0), ("$pc", plate.PartsCountConfirmed ? 1 : 0));
 
                 foreach (var f in plate.Filaments)
                 {

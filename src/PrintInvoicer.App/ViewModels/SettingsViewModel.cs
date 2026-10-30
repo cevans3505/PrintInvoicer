@@ -24,9 +24,89 @@ public partial class SettingsViewModel : ObservableObject
         _db = db;
         _model = db.LoadSettings();
         _loadedNextInvoice = _model.NextInvoiceNumber;
+        RefreshBackupStatus();
     }
 
     public string DatabasePath => _db.FilePath;
+
+    public string BackupFolder
+    {
+        get => App.BackupFolder(_db, Model);
+        set { Model.BackupFolder = string.Equals(value?.Trim(), DatabaseBackup.DefaultFolder(_db.FilePath), StringComparison.OrdinalIgnoreCase) ? "" : value?.Trim() ?? ""; OnPropertyChanged(); RefreshBackupStatus(); }
+    }
+
+    [ObservableProperty] private string _backupStatus = "";
+
+    /// <summary>When the newest backup was made and how many there are, or why the last one failed.</summary>
+    public void RefreshBackupStatus()
+    {
+        try
+        {
+            var all = DatabaseBackup.List(BackupFolder);
+            string latest = all.Count == 0 ? "No backups yet." : $"Newest backup {all[0].LastWriteTime:MMM d, h:mm tt}; {all.Count} kept.";
+            BackupStatus = App.BackupProblem is string problem ? $"{problem} {latest}" : latest;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            BackupStatus = $"Cannot read the backup folder: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void BackUpNow()
+    {
+        try
+        {
+            var path = DatabaseBackup.Manual(_db.FilePath, BackupFolder, DateTime.Now);
+            App.BackupProblem = null;
+            RefreshBackupStatus();
+            BackupStatus = $"Saved {Path.GetFileName(path)}. " + BackupStatus;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            BackupStatus = $"Backup failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void OpenBackupFolder()
+    {
+        try { Directory.CreateDirectory(BackupFolder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { BackupStatus = ex.Message; return; }
+        OpenFolder(BackupFolder);
+    }
+
+    /// <summary>Replaces all data with a backup (saving the current data first), then restarts so every screen reloads.</summary>
+    [RelayCommand]
+    private void RestoreBackup()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Restore a backup",
+            Filter = "PrintInvoicer backups (printinvoicer-*.db)|printinvoicer-*.db|All databases (*.db)|*.db",
+            InitialDirectory = Directory.Exists(BackupFolder) ? BackupFolder : Path.GetDirectoryName(_db.FilePath),
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        var taken = File.GetLastWriteTime(dlg.FileName);
+        if (MessageBox.Show($"Replace all jobs, materials, printers and settings with the backup from {taken:MMMM d, yyyy h:mm tt}?\n\n" +
+                            "Your current data is backed up first, so this can be undone by restoring that copy. PrintInvoicer restarts afterwards.",
+                "Restore a backup", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            DatabaseBackup.Restore(dlg.FileName, _db.FilePath, BackupFolder, DateTime.Now);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            MessageBox.Show($"The backup was not restored: {ex.Message}", "Restore a backup", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (Environment.ProcessPath is string exe) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+        Application.Current.Shutdown();
+    }
 
     public string InvoiceFolder
     {
@@ -59,7 +139,9 @@ public partial class SettingsViewModel : ObservableObject
         Model = _db.LoadSettings();
         _loadedNextInvoice = Model.NextInvoiceNumber;
         OnPropertyChanged(nameof(InvoiceFolder));
+        OnPropertyChanged(nameof(BackupFolder));
         OnPropertyChanged(nameof(NextInvoicePreview));
+        RefreshBackupStatus();
         SavedText = "";
     }
 

@@ -85,6 +85,9 @@ public static class PricingCalculator
             {
                 var (printer, problem) = book.PrinterFor(plate);
                 if (problem != null) warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {problem}.");
+                if (!plate.PartsCountConfirmed)
+                    warnings.Add($"{part.Name}: how many parts are on the plate has not been set. Resin files do not record it, " +
+                                 $"so the per-piece price is only right once it is (now {plate.PartsPerPlate}).");
                 decimal factor = printer.MaterialFactor;
 
                 var slots = new List<SlotQuote>();
