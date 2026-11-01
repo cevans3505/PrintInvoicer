@@ -1,0 +1,43 @@
+PrintInvoicer 3.4
+=================
+
+Tracks 3D printing jobs and makes PDF invoices, for FDM and resin printers.
+
+Install
+-------
+1. Copy PrintInvoicer.exe anywhere you like, for example a folder in Documents. Nothing else needs installing.
+2. Run it. Windows may warn that the app is from an unknown publisher: choose More info, then Run anyway.
+3. Right-click it on the taskbar and choose Pin to taskbar if you want it handy.
+
+Your jobs and settings are saved in Documents\PrintInvoicer. The app copies them to Documents\PrintInvoicer\Backups
+once a day (the newest 14 are kept). For safety against a failed drive, set Settings > Backups > Back up to
+a OneDrive, Dropbox or network folder. Restore a backup... on the same tab puts an old copy back.
+
+First time
+----------
+1. Settings tab: enter your name and contact line (they head every invoice), the default customer (who new jobs are
+   billed to), payment terms and your electricity price, then Save settings.
+2. Materials tab: add your resins with the bottle price and size. A resin whose name appears in the slicer's resin
+   profile is picked automatically. Delete the example resin when you are done.
+3. Jobs tab, New job: drag in a sliced .goo file (ELEGOO Saturn and Mars printers). The first one sets up your printer
+   with starting rates. Check them on the Printers tab: machine $/hr, watts, waste % and markup %.
+4. Printers tab, Extra costs: add anything else you charge, such as IPA and gloves per print, film wear per print hour,
+   or wash and cure per job. Each one can be switched off for a single job.
+
+For slicer files the app cannot read (CHITUBOX .ctb, Anycubic, Lychee and others), use Add plate by hand in the job
+window and type in the print time and mL of resin.
+
+Resin files do not record how many parts are on the plate. Each resin plate asks you to set the count (or confirm
+it is right), and finalizing warns until you do, since the per-piece price depends on it.
+
+Finalizing an invoice dates it and locks in its prices, so it never changes after you send it. Revert to draft to
+change it; it is then priced at your current rates again.
+
+Updates
+-------
+The app tells you when there is a new version: a bar appears at the top of the window (it checks at most once a
+day, and can be turned off in Settings). New versions are posted at https://github.com/cevans3505/PrintInvoicer/releases. Close the app, download the
+newest zip, and replace your PrintInvoicer.exe with the one inside. Your jobs and settings are kept, since they live
+in Documents\PrintInvoicer, not next to the exe. Upgrades convert your data automatically.
+
+The source code is at https://github.com/cevans3505/PrintInvoicer (MIT license) if you want to fork it and change it.

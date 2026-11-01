@@ -29,7 +29,7 @@ the bar until the next start. Settings has the on/off switch and a **Check now**
 
 Only published releases are seen, so a new version reaches other installs once it is released:
 bump `<Version>` in `src/PrintInvoicer.App/PrintInvoicer.App.csproj`, run `publish.ps1`, zip `publish\PrintInvoicer.exe`
-with `dist\Read me.txt`, and create a GitHub release tagged `v<version>` with the zip attached.
+with `packaging\Read me.txt`, and create a GitHub release tagged `v<version>` with the zip attached.
 A fork that publishes its own releases should change `UpdateService.Repository`.
 
 ## Setting up
