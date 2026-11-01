@@ -389,7 +389,7 @@
                     <StackPanel Orientation="Horizontal"><Label Content="Payment terms" /><TextBox Text="{Binding Model.PaymentTerms}" Width="260" /></StackPanel>
                     <StackPanel Orientation="Horizontal"><Label Content="Invoice number prefix" /><TextBox Text="{Binding Model.InvoicePrefix}" />
                         <TextBlock Text="{}{yyyy} becomes the year" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" /></StackPanel>
-                    <StackPanel Orientation="Horizontal"><Label Content="Next invoice sequence" /><TextBox Text="{Binding Model.NextInvoiceNumber}" ToolTip="New invoices continue from the highest saved number. Set this higher to skip ahead; a lower value has no effect." />
+                    <StackPanel Orientation="Horizontal"><Label Content="Next invoice sequence" /><TextBox Text="{Binding Model.NextInvoiceNumber}" ToolTip="New invoices continue from the highest saved number. Set this higher to skip ahead; a lower value has no effect. With {yyyy} in the prefix, numbering starts again at 001 each new year." />
                         <TextBlock Text="{Binding NextInvoicePreview}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" /></StackPanel>
                     <StackPanel Orientation="Horizontal"><Label Content="Save PDFs to" /><TextBox Text="{Binding InvoiceFolder}" Width="Auto" MinWidth="300" />
                         <Button Content="Open" Command="{Binding OpenInvoiceFolderCommand}" Margin="8,2,0,2" MinWidth="50" /></StackPanel>

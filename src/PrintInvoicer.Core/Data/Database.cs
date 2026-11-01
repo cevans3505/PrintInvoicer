@@ -133,6 +133,12 @@ public class Database
 
         MovePrintingRatesToPrinter(c);
 
+        // Before 3.5 the invoice counter had no year; treat an existing one as set this year, so a counter moved
+        // ahead this year still counts until the year rolls over.
+        if (Scalar<long>(c, "SELECT COUNT(*) FROM settings WHERE key = 'NextInvoiceNumber'") > 0)
+            Exec(c, "INSERT INTO settings(key, value) VALUES ('NextInvoiceYear', $y) ON CONFLICT(key) DO NOTHING",
+                ("$y", DateTime.Today.Year.ToString(CultureInfo.InvariantCulture)));
+
         if (Scalar<long>(c, "SELECT COUNT(*) FROM filaments") == 0)
         {
             foreach (var f in SeedData.Filaments()) SaveFilament(f, c);
@@ -226,13 +232,15 @@ public class Database
     public string AllocateInvoiceNumber(DateTime date)
     {
         var (number, seq) = NextInvoiceNumber(date);
-        SetNextInvoiceNumber(seq + 1);
+        SetNextInvoiceNumber(seq + 1, date.Year);
         return number;
     }
 
     /// <summary>
     /// The number a new invoice would get, without using it up: one past the highest saved number with this
     /// year's prefix, or the Settings counter if that is higher (so the counter can still be used to jump ahead).
+    /// With {yyyy} in the prefix the counter belongs to the year it was set in, so numbering restarts at 001 each
+    /// January; without it, numbering simply continues.
     /// </summary>
     public string PeekNextInvoiceNumber(DateTime date) => NextInvoiceNumber(date).Number;
 
@@ -256,18 +264,21 @@ public class Database
             }
         }
 
-        int seq = Math.Max(Math.Max(s.NextInvoiceNumber, 1), highest + 1);
+        bool counterApplies = !s.InvoicePrefix.Contains("{yyyy}") || s.NextInvoiceYear == date.Year;
+        int seq = Math.Max(counterApplies ? Math.Max(s.NextInvoiceNumber, 1) : 1, highest + 1);
         string number = s.FormatInvoiceNumber(seq, date);
         while (InvoiceNumberInUse(number, excludeJobId: null))
             number = s.FormatInvoiceNumber(++seq, date);
         return (number, seq);
     }
 
-    public void SetNextInvoiceNumber(int next)
+    /// <param name="year">The year the counter is for; see <see cref="AppSettings.NextInvoiceYear"/>.</param>
+    public void SetNextInvoiceNumber(int next, int year)
     {
         using var c = Open();
-        Exec(c, "INSERT INTO settings(key, value) VALUES ($k, $v) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            ("$k", nameof(AppSettings.NextInvoiceNumber)), ("$v", next.ToString(CultureInfo.InvariantCulture)));
+        foreach (var (key, value) in new[] { (nameof(AppSettings.NextInvoiceNumber), next), (nameof(AppSettings.NextInvoiceYear), year) })
+            Exec(c, "INSERT INTO settings(key, value) VALUES ($k, $v) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                ("$k", key), ("$v", value.ToString(CultureInfo.InvariantCulture)));
     }
 
     /// <summary>True if another job already has this invoice number (ignoring case and surrounding spaces).</summary>

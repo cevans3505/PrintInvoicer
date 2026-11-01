@@ -62,7 +62,7 @@ public sealed class DatabaseTests : IDisposable
         db.SaveJob(new Job { Title = "typed", InvoiceNumber = "2026-002" });
 
         // A settings save from a stale copy set the counter back to 1, as happened with the Settings tab.
-        db.SetNextInvoiceNumber(1);
+        db.SetNextInvoiceNumber(1, 2026);
 
         Assert.Equal("2026-003", db.AllocateInvoiceNumber(date));
         Assert.Equal("2026-004", db.AllocateInvoiceNumber(date));
@@ -82,8 +82,40 @@ public sealed class DatabaseTests : IDisposable
         Assert.Equal(1, db.LoadSettings().NextInvoiceNumber);
 
         // A counter set ahead in Settings still wins.
-        db.SetNextInvoiceNumber(20);
+        db.SetNextInvoiceNumber(20, 2026);
         Assert.Equal("2026-020", db.PeekNextInvoiceNumber(date));
+    }
+
+    [Fact]
+    public void Numbering_restarts_at_001_each_year()
+    {
+        var db = new Database(_path);
+        for (int i = 0; i < 5; i++) db.AllocateInvoiceNumber(new DateTime(2026, 12, 30));   // 2026-001..005, counter at 6
+        Assert.Equal("2027-001", db.AllocateInvoiceNumber(new DateTime(2027, 1, 2)));
+        Assert.Equal("2027-002", db.AllocateInvoiceNumber(new DateTime(2027, 1, 3)));
+        // A late 2026 invoice still continues 2026's own sequence.
+        db.SaveJob(new Job { Title = "late", InvoiceNumber = "2026-005" });
+        Assert.Equal("2026-006", db.PeekNextInvoiceNumber(new DateTime(2026, 12, 31)));
+    }
+
+    [Fact]
+    public void A_counter_set_ahead_applies_only_to_its_year()
+    {
+        var db = new Database(_path);
+        db.SetNextInvoiceNumber(50, 2026);
+        Assert.Equal("2026-050", db.PeekNextInvoiceNumber(new DateTime(2026, 11, 1)));
+        Assert.Equal("2027-001", db.PeekNextInvoiceNumber(new DateTime(2027, 1, 1)));
+    }
+
+    [Fact]
+    public void Without_a_year_in_the_prefix_numbering_continues()
+    {
+        var db = new Database(_path);
+        var s = db.LoadSettings();
+        s.InvoicePrefix = "INV-";
+        db.SaveSettings(s);
+        for (int i = 0; i < 3; i++) db.AllocateInvoiceNumber(new DateTime(2026, 12, 30));
+        Assert.Equal("INV-004", db.AllocateInvoiceNumber(new DateTime(2027, 1, 2)));
     }
 
     [Fact]

@@ -18,6 +18,12 @@ public class AppSettings
     public string PaymentTerms { get; set; } = "Net 30";
     public string InvoicePrefix { get; set; } = "{yyyy}-";
     public int NextInvoiceNumber { get; set; } = 1;
+
+    /// <summary>
+    /// The year <see cref="NextInvoiceNumber"/> was set for. When the prefix has {yyyy}, the counter only counts in
+    /// that year, so a new year starts again at 001. 0 means not known.
+    /// </summary>
+    public int NextInvoiceYear { get; set; }
     public string InvoiceFolder { get; set; } = "";
 
     /// <summary>Where daily backups go; blank means a Backups folder next to the database.</summary>

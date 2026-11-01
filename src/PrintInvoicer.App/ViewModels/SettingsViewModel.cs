@@ -125,7 +125,15 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (Model.NextInvoiceNumber < 1) Model.NextInvoiceNumber = 1;
         if (Model.NextInvoiceNumber == _loadedNextInvoice)
-            Model.NextInvoiceNumber = _db.LoadSettings().NextInvoiceNumber;
+        {
+            var stored = _db.LoadSettings();
+            Model.NextInvoiceNumber = stored.NextInvoiceNumber;
+            Model.NextInvoiceYear = stored.NextInvoiceYear;
+        }
+        else
+        {
+            Model.NextInvoiceYear = DateTime.Today.Year;   // a counter typed in now is for this year
+        }
         _db.SaveSettings(Model);
         _loadedNextInvoice = Model.NextInvoiceNumber;
         OnPropertyChanged(nameof(Model));
