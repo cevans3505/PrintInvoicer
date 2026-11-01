@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Windows are leaked when a picture precondition fails"
   - id: WR-02
     severity: warning
@@ -19,16 +19,16 @@ findings:
     severity: info
     disposition: open
     title: "Dev script and test have small robustness gaps"
-open: 4
+open: 3
 total: 4
-recorded: 2026-11-01T23:28:29.128Z
+recorded: 2026-11-01T23:34:40.191Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
 | WR-02 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
