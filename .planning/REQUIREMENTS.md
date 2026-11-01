@@ -24,7 +24,7 @@
 
 ### Concerns Triage
 
-- [ ] **TRIA-01**: `.planning/CONCERNS-TRIAGE.md` scores every concern in CONCERNS.md for benefit, cost and benefit/cost, with a decision and rationale for each
+- [x] **TRIA-01**: `.planning/CONCERNS-TRIAGE.md` scores every concern in CONCERNS.md for benefit, cost and benefit/cost, with a decision and rationale for each
 
 ### Concern Fixes (score order)
 
@@ -73,12 +73,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| SHOW-01 | Phase 1 | Pending |
+| SHOW-02 | Phase 1 | Pending |
+| SHOW-03 | Phase 1 | Pending |
+| SHOW-04 | Phase 1 | Pending |
+| SHOW-05 | Phase 1 | Pending |
+| TRIA-01 | Phase 2 | Complete |
+| FIX-01 | Phase 2 | Pending |
+| FIX-02 | Phase 2 | Pending |
+| FIX-03 | Phase 2 | Pending |
+| FIX-04 | Phase 2 | Pending |
+| FIX-05 | Phase 2 | Pending |
+| FIX-06 | Phase 2 | Pending |
+| FIX-07 | Phase 2 | Pending |
+| FIX-08 | Phase 3 | Pending |
+| FIX-09 | Phase 3 | Pending |
+| FIX-10 | Phase 3 | Pending |
+| FIX-11 | Phase 3 | Pending |
+| FIX-12 | Phase 3 | Pending |
+| SUBM-01 | Phase 4 | Pending |
+| SUBM-02 | Phase 4 | Pending |
+| SUBM-03 | Phase 4 | Pending |
+| SUBM-04 | Phase 4 | Pending |
+| SUBM-05 | Phase 4 | Pending |
+| SUBM-06 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24
+- Mapped to phases: 24
+- Complete: 1 (TRIA-01)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-01*
-*Last updated: 2026-11-01 after initial definition*
+*Last updated: 2026-11-01 after roadmap creation*
