@@ -27,9 +27,9 @@ the window if so. **Download** opens the release page; nothing is downloaded or 
 the bar until the next start. Settings has the on/off switch and a **Check now** button. The last answer is kept in
 `%LOCALAPPDATA%\PrintInvoicer\update-check.json`.
 
-Only published releases are seen, so a new version reaches other installs once it is released:
-bump `<Version>` in `src/PrintInvoicer.App/PrintInvoicer.App.csproj`, run `publish.ps1`, zip `publish\PrintInvoicer.exe`
-with `packaging\Read me.txt`, and create a GitHub release tagged `v<version>` with the zip attached.
+Only published releases are seen, so a new version reaches other installs once its release is published. Releases are
+built on GitHub, not on a PC: pushing a `v<version>` tag builds the zip and creates a **draft** release, which stays
+invisible to the update check until you publish it. The steps are under [Making a release](#making-a-release).
 A fork that publishes its own releases should change `UpdateService.Repository`.
 
 ## Setting up
@@ -124,6 +124,33 @@ dotnet run --project src\PrintInvoicer.App
 - `tests/PrintInvoicer.UiTests`: opens the real windows and renders every invoice kind on sample data, offscreen (nothing
   appears on screen), and fails on any WPF binding error. Screenshots land in its `bin\...\screens` folder for a look.
   `publish.ps1` runs both test projects before building.
+
+Every push and pull request to `main` runs the **CI** workflow (`.github/workflows/ci.yml`) on a GitHub Windows runner:
+it builds the solution in Release and runs both test projects, each in its own job. Test results (`.trx`) and the
+screen-test screenshots are attached to the run as artifacts.
+
+### Making a release
+
+1. Bump `<Version>` in `src/PrintInvoicer.App/PrintInvoicer.App.csproj` (for example `3.5.0`), and the heading in
+   `packaging/Read me.txt` if the major or minor number changed. Commit and push to `main`, and wait for CI to pass.
+2. Tag that commit with `v` plus the exact version and push the tag:
+
+   ```powershell
+   git tag v3.5.0
+   git push origin v3.5.0
+   ```
+
+3. The **Release** workflow (`.github/workflows/release.yml`) checks the tag matches `<Version>` (and stops with an
+   error if not), runs the unit tests, builds `PrintInvoicer.exe` with the same `dotnet publish` settings as
+   `publish.ps1`, zips it with `Read me.txt` into `PrintInvoicer-<version>.zip`, and creates a **draft** release for
+   the tag with the zip attached. Follow it on the repository's **Actions** tab.
+4. On the **Releases** page, open the draft, check the zip, replace the placeholder text with the release notes, and
+   press **Publish release**. Only then do installed copies see the update.
+
+If the tag was wrong, delete it (`git push origin --delete v3.5.0` and `git tag -d v3.5.0`), fix things, and tag again.
+If a draft for the tag already exists, delete the draft first; the workflow will not overwrite it.
+
+`publish.ps1` is still the way to build and install on your own PC; it no longer needs to be part of a release.
 
 ## License
 

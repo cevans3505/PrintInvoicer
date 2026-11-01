@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build and unit tests
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore PrintInvoicer.sln
+
+      - name: Build (Release)
+        run: dotnet build PrintInvoicer.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: >
+          dotnet test tests/PrintInvoicer.Tests -c Release --no-build
+          --logger "trx;LogFileName=unit-tests.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results
+          path: TestResults/*.trx
+          if-no-files-found: warn
+
+  # The screen tests open the real WPF windows offscreen. They need a Windows desktop session, which hosted runners
+  # provide, but they are kept in their own job so a problem with the runner's desktop shows up separately from the
+  # unit tests.
+  screen-tests:
+    name: Screen tests (WPF, offscreen)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore PrintInvoicer.sln
+
+      - name: Build (Release)
+        run: dotnet build tests/PrintInvoicer.UiTests -c Release --no-restore
+
+      - name: Screen tests
+        run: >
+          dotnet test tests/PrintInvoicer.UiTests -c Release --no-build
+          --logger "trx;LogFileName=screen-tests.trx" --results-directory TestResults
+
+      - name: Upload test results and screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: screen-test-results
+          path: |
+            TestResults/*.trx
+            tests/PrintInvoicer.UiTests/bin/Release/net10.0-windows/screens/
+          if-no-files-found: warn

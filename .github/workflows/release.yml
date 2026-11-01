@@ -1,0 +1,134 @@
+name: Release
+
+# Pushing a tag such as v3.5.0 builds PrintInvoicer-3.5.0.zip and attaches it to a DRAFT release for that tag.
+# Nothing is published automatically: review the draft on GitHub, write the notes and press Publish release.
+# The app's update check only sees published releases, so users are not told about a draft.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Test and build the zip
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          $csproj = 'src/PrintInvoicer.App/PrintInvoicer.App.csproj'
+          $node = ([xml](Get-Content -Raw $csproj)).SelectSingleNode('/Project/PropertyGroup/Version')
+          if (-not $node -or -not $node.InnerText.Trim()) {
+              Write-Output "::error file=$csproj::No <Version> found in $csproj."
+              exit 1
+          }
+          $version = $node.InnerText.Trim()
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -cne "v$version") {
+              Write-Output "::error file=$csproj::Tag '$tag' does not match <Version>$version</Version> in $csproj. The tag must be exactly 'v$version'. Delete the tag, fix the version or the tag, and push again."
+              exit 1
+          }
+          # Not fatal: the read-me heading is edited by hand and may lag behind a patch release.
+          $readmeHeading = (Get-Content -LiteralPath 'packaging/Read me.txt' -TotalCount 1).Trim()
+          $majorMinor = ($version -split '\.')[0..1] -join '.'
+          if ($readmeHeading -notmatch "^PrintInvoicer $([regex]::Escape($majorMinor))(\.|$)") {
+              Write-Output "::warning file=packaging/Read me.txt::The read-me heading is '$readmeHeading' but this release is $version."
+          }
+          Write-Output "Releasing version $version from tag $tag"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Unit tests
+        run: >
+          dotnet test tests/PrintInvoicer.Tests -c Release
+          --logger "trx;LogFileName=unit-tests.trx" --results-directory TestResults
+
+      # Same dotnet publish arguments as publish.ps1.
+      - name: Publish PrintInvoicer.exe
+        run: >
+          dotnet publish src/PrintInvoicer.App -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o publish --nologo
+
+      - name: Zip PrintInvoicer.exe and Read me.txt
+        run: |
+          $zip = "PrintInvoicer-${{ steps.version.outputs.version }}.zip"
+          Compress-Archive -LiteralPath 'publish/PrintInvoicer.exe', 'packaging/Read me.txt' -DestinationPath $zip
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $zip).Path)
+          try { foreach ($entry in $archive.Entries) { Write-Output "$zip contains: $($entry.FullName) ($($entry.Length) bytes)" } }
+          finally { $archive.Dispose() }
+
+      - name: Upload the zip for the release job
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-zip
+          path: PrintInvoicer-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-unit-test-results
+          path: TestResults/*.trx
+          if-no-files-found: warn
+
+  draft-release:
+    name: Create draft release
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    # Only this job can write to the repository, and it only runs the gh command below.
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-zip
+
+      - name: Create the draft release with the zip attached
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $zip = "PrintInvoicer-$env:VERSION.zip"
+          # Includes drafts, which this token can see.
+          $existing = gh api "repos/$env:GH_REPO/releases" --paginate --jq '.[].tag_name'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($existing -contains $tag) {
+              Write-Output "::error::A release (possibly a draft) for $tag already exists. Delete it on the Releases page first if you want this run to recreate it."
+              exit 1
+          }
+          $notes = @"
+          _Draft created by the Release workflow. Replace this text with the release notes, then publish._
+
+          Download $zip, unzip it and run PrintInvoicer.exe. See Read me.txt in the zip for first-time setup.
+          "@
+          gh release create $tag $zip --draft --verify-tag --title "PrintInvoicer $env:VERSION" --notes $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Output "Draft release created for $tag. Review it on the Releases page and publish it when ready."
