@@ -188,10 +188,30 @@ dotnet run --project src\PrintInvoicer.App
 - `tests/PrintInvoicer.UiTests`: opens the real windows and renders every invoice kind on sample data, offscreen (nothing
   appears on screen), and fails on any WPF binding error. Screenshots land in its `bin\...\screens` folder for a look.
   `publish.ps1` runs both test projects before building.
+- `docs/images`: the README pictures, rebuilt by `make-readme-images.ps1` (see below)
 
 Every push and pull request to `main` runs the **CI** workflow (`.github/workflows/ci.yml`) on a GitHub Windows runner:
 it builds the solution in Release and runs both test projects, each in its own job. Test results (`.trx`) and the
 screen-test screenshots are attached to the run as artifacts.
+
+### Regenerating the README images
+
+The three pictures at the top of this README (`docs/images`) are made from the sample shop the screen tests use,
+`tests/PrintInvoicer.UiTests/SampleShop.cs`. After a change to the windows, the invoice layout or the sample data,
+rebuild them from Windows PowerShell in the repository folder:
+
+```powershell
+.\make-readme-images.ps1
+```
+
+It runs one screen test, `ReadmeImageTests`, offscreen, so no window appears and PrintInvoicer can stay open. It
+rewrites `main-jobs.png`, `job-editor.png` and `invoice-page-1.png`, and stops with an error if any of them was not
+rebuilt. A normal `dotnet test` run, `publish.ps1` and CI never write to `docs/images`; they only render the pictures
+into the test's `bin\...\screens\readme` folder.
+
+Then run `git status docs/images` and commit the pictures that changed. Running it again with nothing changed gives the
+same files on the same PC. Another PC's fonts or display scaling can move a few pixels, so the next set is best made
+on the same PC as the last one.
 
 ### Making a release
 
