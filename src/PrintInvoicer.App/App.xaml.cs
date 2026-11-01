@@ -38,28 +38,30 @@ public partial class App : Application
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         EventManager.RegisterClassHandler(typeof(TextBox), FrameworkElement.LoadedEvent, new RoutedEventHandler(HideClearButton));
 
+        // Anything unexpected is reported plainly, with details saved for the developer, instead of a bare message.
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(args.Exception.Message, "PrintInvoicer", MessageBoxButton.OK, MessageBoxImage.Error);
+            ErrorReport.Show("PrintInvoicer ran into an unexpected error. Your saved data is not affected; you can keep working.", args.Exception);
             args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex) ErrorReport.Show("PrintInvoicer ran into an error it cannot recover from and will close.", ex);
         };
 
         try
         {
             Db = new Database(Database.DefaultPath);
+            var backup = BackUpTodayAsync(Db);
+            var main = new MainWindow();
+            main.Show();
+            backup.ContinueWith(_ => main.Dispatcher.BeginInvoke(() => main.ViewModel.Settings.RefreshBackupStatus()));
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open the database at {Database.DefaultPath}.\n\n{ex.Message}", "PrintInvoicer",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            ErrorReport.Show($"PrintInvoicer could not start. Its data is in {Database.DefaultPath}; nothing was changed.", ex);
             Shutdown(1);
-            return;
         }
-
-        var backup = BackUpTodayAsync(Db);
-        var main = new MainWindow();
-        main.Show();
-        backup.ContinueWith(_ => main.Dispatcher.BeginInvoke(() => main.ViewModel.Settings.RefreshBackupStatus()));
     }
 
     /// <summary>

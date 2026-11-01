@@ -203,11 +203,20 @@ public class Database
         foreach (var p in SettingProps)
         {
             if (!values.TryGetValue(p.Name, out var v)) continue;
-            object? parsed = p.PropertyType == typeof(decimal) ? decimal.Parse(v, CultureInfo.InvariantCulture)
-                : p.PropertyType == typeof(int) ? int.Parse(v, CultureInfo.InvariantCulture)
-                : p.PropertyType == typeof(string) ? v
-                : p.PropertyType == typeof(bool) ? bool.Parse(v)
-                : null;
+            object? parsed;
+            try
+            {
+                parsed = p.PropertyType == typeof(decimal) ? decimal.Parse(v, CultureInfo.InvariantCulture)
+                    : p.PropertyType == typeof(int) ? int.Parse(v, CultureInfo.InvariantCulture)
+                    : p.PropertyType == typeof(string) ? v
+                    : p.PropertyType == typeof(bool) ? bool.Parse(v)
+                    : null;
+            }
+            catch (Exception ex) when (ex is FormatException or OverflowException)
+            {
+                // Never guess a replacement: a wrong rate would silently change invoice totals.
+                throw new InvalidDataException($"The setting \"{p.Name}\" in {FilePath} holds \"{v}\", which is not a valid value.", ex);
+            }
             if (parsed != null) p.SetValue(s, parsed);
         }
         return s;

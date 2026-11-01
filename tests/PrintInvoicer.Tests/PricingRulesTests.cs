@@ -112,6 +112,43 @@ public sealed class PricingRulesTests : IDisposable
     }
 
     [Fact]
+    public void Material_with_no_price_warns()
+    {
+        var free = new Filament { Id = 9, Vendor = "Generic", Material = "PLA", SpoolPrice = 0m };
+        var job = new Job { Parts = { new JobPart { Name = "Clip", Plates = { new JobPlate {
+            PrinterId = 1, SlicedSeconds = 3600, Filaments = { new PlateFilament { SlotId = 1, SlicedGrams = 50m, FilamentId = 9 } } } } } } };
+        var book = new PriceBook(new AppSettings(), filaments: [free], printers: [Fdm]);
+        Assert.Contains(PricingCalculator.Calculate(job, book).Warnings, w => w.Contains("has no price"));
+
+        // The customer's own material is meant to cost nothing.
+        job.Parts[0].Plates[0].Filaments[0].CustomerSupplied = true;
+        Assert.DoesNotContain(PricingCalculator.Calculate(job, book).Warnings, w => w.Contains("has no price"));
+
+        var resinPrinter = new Printer { Id = 2, Technology = PrintTechnology.Resin };
+        var sizeless = new Resin { Id = 3, Name = "Grey", BottlePrice = 30m, BottleSize = 0m };
+        var resinJob = new Job { Parts = { new JobPart { Name = "Mini", Plates = { new JobPlate {
+            PrinterId = 2, Technology = PrintTechnology.Resin, Resin = new PlateResin { SlicedMl = 10m, ResinId = 3 } } } } } };
+        var resinBook = new PriceBook(new AppSettings(), resins: [sizeless], printers: [resinPrinter]);
+        Assert.Contains(PricingCalculator.Calculate(resinJob, resinBook).Warnings, w => w.Contains("Grey has no price"));
+    }
+
+    [Fact]
+    public void A_damaged_setting_names_itself_instead_of_guessing()
+    {
+        var db = new Database(_path);
+        using (var c = new SqliteConnection($"Data Source={_path};Pooling=False"))
+        {
+            c.Open();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "INSERT INTO settings(key, value) VALUES ('ElectricityPerKwh', 'abc')";
+            cmd.ExecuteNonQuery();
+        }
+        var ex = Assert.Throws<InvalidDataException>(() => db.LoadSettings());
+        Assert.Contains("ElectricityPerKwh", ex.Message);
+        Assert.Contains("abc", ex.Message);
+    }
+
+    [Fact]
     public void Frozen_invoices_keep_the_rules_they_were_priced_under()
     {
         var job = BulkJob(1000, 14400);

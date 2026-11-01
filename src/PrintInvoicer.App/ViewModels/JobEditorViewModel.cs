@@ -95,10 +95,16 @@ public partial class JobEditorViewModel : ObservableObject
         set { if (SetProperty(Job.Notes, value, Job, (j, v) => j.Notes = v)) Changed(); }
     }
 
+    /// <summary>Kept to 2 decimals, as the invoice shows them, so hours x rate on the invoice multiplies out.</summary>
     public decimal ModelingHours
     {
         get => Job.ModelingHours;
-        set { if (SetProperty(Job.ModelingHours, Math.Max(0, value), Job, (j, v) => j.ModelingHours = v)) Changed(); }
+        set
+        {
+            value = Math.Round(Math.Max(0, value), 2, MidpointRounding.AwayFromZero);
+            if (SetProperty(Job.ModelingHours, value, Job, (j, v) => j.ModelingHours = v)) Changed();
+            else OnPropertyChanged();   // show the rounded value even when it did not change
+        }
     }
 
     public bool PostProcessing

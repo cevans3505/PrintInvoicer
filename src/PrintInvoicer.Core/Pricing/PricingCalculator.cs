@@ -108,6 +108,8 @@ public static class PricingCalculator
                         {
                             cpm = r.CostPerMl;
                             material = pr.EffectiveMl * cpm * factor * plate.Copies;
+                            if (cpm == 0 && pr.EffectiveMl > 0)
+                                warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {r.DisplayName} has no price (bottle price or size is 0), so its material is $0. Set it on the Materials tab.");
                         }
                     }
                     resin = new ResinQuote(pr, r, pr.EffectiveMl, cpm, material);
@@ -130,6 +132,8 @@ public static class PricingCalculator
                             {
                                 cpg = f.CostPerGram;
                                 material = grams * cpg * factor * plate.Copies;
+                                if (cpg == 0 && grams > 0)
+                                    warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {f.DisplayName} has no price (spool price or size is 0), so its material is $0. Set it on the Materials tab.");
                             }
                         }
                         slots.Add(new SlotQuote(slot, f, grams, cpg, material));

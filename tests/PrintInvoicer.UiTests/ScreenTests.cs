@@ -101,6 +101,11 @@ public sealed class ScreenTests : IDisposable
         Assert.Equal(Format.Money(expected.Total), vm.TotalText);
         Assert.True(vm.IsEditable);
         Assert.Equal(5, vm.Parts[0].Plates[0].Slots.Count);
+
+        // Modeling hours keep 2 decimals, as the invoice shows them, so hours x rate multiplies out.
+        vm.ModelingHours = 1.333m;
+        Assert.Equal(1.33m, vm.ModelingHours);
+        Assert.Equal(Format.Money(1.33m * 50m), vm.ModelingText);
         CloseQuietly(window, vm);
         NoBindingErrors("The FDM job window");
     });
