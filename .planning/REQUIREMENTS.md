@@ -7,7 +7,7 @@
 
 ### README Showcase
 
-- [ ] **SHOW-01**: A visitor to the README sees an image of the main job list with sample jobs in different states (draft, finalized, paid)
+- [x] **SHOW-01**: A visitor to the README sees an image of the main job list with sample jobs in different states (draft, finalized, paid)
 - [ ] **SHOW-02**: A visitor sees an image of the job editor with a job built from a slice file, showing plates, filament use and the price breakdown
 - [ ] **SHOW-03**: A visitor sees page 1 of a sample invoice as a PNG
 - [ ] **SHOW-04**: A maintainer can regenerate all README images with one command that renders offscreen (no window shown) from seeded sample data with no personal data
@@ -73,7 +73,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHOW-01 | Phase 1 | Pending |
+| SHOW-01 | Phase 1 | Complete |
 | SHOW-02 | Phase 1 | Pending |
 | SHOW-03 | Phase 1 | Pending |
 | SHOW-04 | Phase 1 | Pending |
