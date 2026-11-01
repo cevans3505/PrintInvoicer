@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PrintInvoicer.App;
+using PrintInvoicer.App.ViewModels;
 
 namespace PrintInvoicer.UiTests;
 
@@ -43,8 +44,10 @@ public sealed class ReadmeImageTests : IDisposable
         try
         {
             var jobList = RenderJobList();
+            var (editor, editorTotal) = RenderJobEditor();
 
             Save("main-jobs.png", jobList);
+            Save("job-editor.png", editor);
         }
         finally
         {
@@ -81,6 +84,31 @@ public sealed class ReadmeImageTests : IDisposable
         AssertPng(png, 2000, 2200, 1200, 1360);
         AssertFillsFrame(png);
         return png;
+    }
+
+    /// <summary>
+    /// The job editor for the Wire Brush Inserts draft at its default 1320 x 820, at 2x, and the total it shows. The size
+    /// is set in code because a window layout file left by an earlier test run can change the default, and IsDirty is
+    /// cleared before closing so no save prompt opens.
+    /// </summary>
+    private (byte[] Png, string Total) RenderJobEditor()
+    {
+        var vm = new JobEditorViewModel(_shop.Db, _shop.Reload(_shop.FdmJob)) { ShowNotes = _ => { } };
+        var window = WpfHost.Offscreen(new JobEditorWindow(vm));
+        window.Width = 1320;
+        window.Height = 820;
+        WpfHost.Settle(window);
+        Assert.True(vm.IsEditable);
+        Assert.Equal(5, vm.Parts[0].Plates[0].Slots.Count);
+
+        byte[] png = WpfHost.RenderPng(window, 2);
+        string total = vm.TotalText;
+        vm.IsDirty = false;
+        window.Close();
+        Assert.Empty(WpfHost.TakeBindingErrors());
+        AssertPng(png, 2400, 2640, 1400, 1640);
+        AssertFillsFrame(png);
+        return (png, total);
     }
 
     /// <summary>Fails the run, before anything is written, if a picture is not a PNG of the expected size.</summary>

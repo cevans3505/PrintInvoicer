@@ -12,6 +12,11 @@ These pictures are made from sample data, so every name in them is made up.
 
 The job list. Each job stays a draft until you finalize its invoice, and you tick Paid when the customer pays.
 
+![The job editor for a job built from a Bambu Studio file](docs/images/job-editor.png)
+
+The job editor for a job built from a Bambu Studio file: the plate and its picture, the filament in each AMS slot,
+and the price breakdown with a friends and family discount and filament the customer supplied.
+
 > [!IMPORTANT]
 > **Personal project, shared as-is.** I built PrintInvoicer for my own use, invoicing 3D printing work for a local
 > business. I'm sharing it publicly because I believe in open source and in sharing code for the benefit of everyone.
