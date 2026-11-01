@@ -12,7 +12,7 @@ This milestone makes PrintInvoicer easier to understand at a glance, pays down k
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: README Showcase** - Generated offscreen images of the job list, job editor and invoice page 1 in the README
+- [x] **Phase 1: README Showcase** - Generated offscreen images of the job list, job editor and invoice page 1 in the README (completed 2026-11-01)
 - [ ] **Phase 2: Quick-Win Concern Fixes** - Concerns scored 2.0 and above fixed in score order (checksums, legacy database test, safer paths, names and reads)
 - [ ] **Phase 3: Data Safety Fixes** - Concerns scored 1.5 fixed in score order (freeze once, safe restore, ZIP cap, single instance, integrity check)
 - [ ] **Phase 4: Slice File Submissions** - GitHub issue forms for slice files, linked from the README and an app menu item, with privacy warnings
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The README shows page 1 of a sample invoice as a PNG
   4. A maintainer runs one command and all three images are rebuilt offscreen (no window or dialog appears) from seeded sample data that uses only sample names such as "Harbor Dive Shop"
   5. The README explains how to run that command to regenerate the images
-**Plans**: 2/2 plans executed
+**Plans**: 2/2 plans complete
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md - Tracer: job list picture through the one command (2x offscreen render, gated write, README section), then a paid job and fixed dates in SampleShop (SHOW-01, SHOW-04)
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1, 2, 3, 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. README Showcase | 2/2 | In Progress | - |
+| 1. README Showcase | 2/2 | Complete    | 2026-11-01 |
 | 2. Quick-Win Concern Fixes | 0/TBD | Not started | - |
 | 3. Data Safety Fixes | 0/TBD | Not started | - |
 | 4. Slice File Submissions | 0/TBD | Not started | - |
