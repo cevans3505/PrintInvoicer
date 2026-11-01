@@ -68,23 +68,31 @@ public sealed class ReadmeImageTests : IDisposable
     private byte[] RenderJobList()
     {
         var main = WpfHost.Offscreen(new MainWindow());
-        main.Width = 1100;
-        main.Height = 680;
-        WpfHost.Settle(main);
+        byte[] png;
+        try
+        {
+            main.Width = 1100;
+            main.Height = 680;
+            WpfHost.Settle(main);
 
-        // The picture must show every state in a fixed order, or it is not worth committing.
-        var rows = main.ViewModel.Jobs;
-        string[] expectedTitles = ["Regulator clips", "Wire Brush Inserts", "Tube caps", "Dive light mounts"];
-        Assert.Equal(expectedTitles, rows.Select(r => r.Title));
-        string[] expectedInvoices = ["2026-002", "2026-001", "2026-003", "2026-004"];
-        Assert.Equal(expectedInvoices, rows.Select(r => r.Invoice));
-        string[] expectedDates = ["2026-10-31", "2026-10-31", "2026-10-30", "2026-10-22"];
-        Assert.Equal(expectedDates, rows.Select(r => r.Date));
-        string[] expectedStatuses = ["Draft", "Draft", "Invoiced Oct 30", "Paid Oct 27"];
-        Assert.Equal(expectedStatuses, rows.Select(r => r.Status));
+            // The picture must show every state in a fixed order, or it is not worth committing.
+            var rows = main.ViewModel.Jobs;
+            string[] expectedTitles = ["Regulator clips", "Wire Brush Inserts", "Tube caps", "Dive light mounts"];
+            Assert.Equal(expectedTitles, rows.Select(r => r.Title));
+            string[] expectedInvoices = ["2026-002", "2026-001", "2026-003", "2026-004"];
+            Assert.Equal(expectedInvoices, rows.Select(r => r.Invoice));
+            string[] expectedDates = ["2026-10-31", "2026-10-31", "2026-10-30", "2026-10-22"];
+            Assert.Equal(expectedDates, rows.Select(r => r.Date));
+            string[] expectedStatuses = ["Draft", "Draft", "Invoiced Oct 30", "Paid Oct 27"];
+            Assert.Equal(expectedStatuses, rows.Select(r => r.Status));
 
-        byte[] png = WpfHost.RenderPng(main, 2);
-        main.Close();
+            png = WpfHost.RenderPng(main, 2);
+        }
+        finally
+        {
+            // Always closed, so a failed check cannot leave the window open for the next test.
+            main.Close();
+        }
         Assert.Empty(WpfHost.TakeBindingErrors());
         AssertPng(png, 2000, 2200, 1200, 1360);
         AssertFillsFrame(png);
@@ -100,16 +108,25 @@ public sealed class ReadmeImageTests : IDisposable
     {
         var vm = new JobEditorViewModel(_shop.Db, _shop.Reload(_shop.FdmJob)) { ShowNotes = _ => { } };
         var window = WpfHost.Offscreen(new JobEditorWindow(vm));
-        window.Width = 1320;
-        window.Height = 820;
-        WpfHost.Settle(window);
-        Assert.True(vm.IsEditable);
-        Assert.Equal(5, vm.Parts[0].Plates[0].Slots.Count);
+        byte[] png;
+        string total;
+        try
+        {
+            window.Width = 1320;
+            window.Height = 820;
+            WpfHost.Settle(window);
+            Assert.True(vm.IsEditable);
+            Assert.Equal(5, vm.Parts[0].Plates[0].Slots.Count);
 
-        byte[] png = WpfHost.RenderPng(window, 2);
-        string total = vm.TotalText;
-        vm.IsDirty = false;
-        window.Close();
+            png = WpfHost.RenderPng(window, 2);
+            total = vm.TotalText;
+        }
+        finally
+        {
+            // Always closed and never dirty, so a failed check cannot leave the editor open or open a save prompt.
+            vm.IsDirty = false;
+            window.Close();
+        }
         Assert.Empty(WpfHost.TakeBindingErrors());
         AssertPng(png, 2400, 2640, 1400, 1640);
         AssertFillsFrame(png);
