@@ -50,9 +50,10 @@ jobs:
           path: TestResults/*.trx
           if-no-files-found: warn
 
-  # The screen tests open the real WPF windows offscreen. They need a Windows desktop session, which hosted runners
-  # provide, but they are kept in their own job so a problem with the runner's desktop shows up separately from the
-  # unit tests.
+  # The screen tests open the real WPF windows offscreen, so they need an interactive Windows desktop session.
+  # GitHub's windows-latest runners provide one, and all 9 pass there, so a failure here fails the CI run just like a unit test failure.
+  # It is a separate job so a failure caused by the runner's desktop is easy to tell apart from a unit test failure.
+  # If the hosted desktop ever turns flaky, add `continue-on-error: true` to this job rather than changing the tests.
   screen-tests:
     name: Screen tests (WPF, offscreen)
     runs-on: windows-latest
