@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using PrintInvoicer.Core.Models;
@@ -51,10 +52,21 @@ public static partial class GooFileReader
         int seconds = BinaryPrimitives.ReadInt32BigEndian(h.Slice(PrintSecondsAt));
         float volumeMm3 = BinaryPrimitives.ReadSingleBigEndian(h.Slice(VolumeAt));
 
-        var plate = new SlicedPlate(1, Math.Max(seconds, 0), [], [], Preview(h.Slice(BigPreviewAt, 2 * BigPreviewSize * BigPreviewSize), BigPreviewSize))
+        // Range checks come before any conversion: NaN, infinity or a huge float would make the decimal cast throw,
+        // and a negative or absurd value would otherwise be priced.
+        if (layers is < 0 or > SliceLimits.MaxLayers)
+            throw Damaged($"a layer count of {layers}");
+        if (!float.IsFinite(layerHeight) || layerHeight < 0 || layerHeight > SliceLimits.MaxLayerHeightMm)
+            throw Damaged($"a layer height of {layerHeight.ToString(CultureInfo.InvariantCulture)} mm");
+        if (seconds is < 0 or > SliceLimits.MaxSeconds)
+            throw Damaged($"a print time of {seconds} seconds");
+        if (!float.IsFinite(volumeMm3) || volumeMm3 < 0 || volumeMm3 > (float)SliceLimits.MaxMl * 1000f)
+            throw Damaged($"a resin volume of {volumeMm3.ToString(CultureInfo.InvariantCulture)} mm³");
+
+        var plate = new SlicedPlate(1, seconds, [], [], Preview(h.Slice(BigPreviewAt, 2 * BigPreviewSize * BigPreviewSize), BigPreviewSize))
         {
             Resin = new SlicedResin(profile, Math.Round((decimal)volumeMm3 / 1000m, 2)),
-            LayerCount = Math.Max(layers, 0),
+            LayerCount = layers,
             LayerHeightMm = Math.Round((decimal)layerHeight, 3),
         };
         return new SlicedFile(path, string.IsNullOrWhiteSpace(printer) ? null : printer, [plate]) { Technology = PrintTechnology.Resin };
@@ -81,6 +93,9 @@ public static partial class GooFileReader
 
     [GeneratedRegex(@"[_\s-]+\d{12,14}$")]
     private static partial Regex TrailingStamp();
+
+    private static InvalidDataException Damaged(string what) =>
+        new($"This .goo file looks damaged: its header gives {what}. Slice the model again and save a new .goo file.");
 
     private static bool IsDelimiter(ReadOnlySpan<byte> h, int at) => h[at] == 0x0D && h[at + 1] == 0x0A;
 
