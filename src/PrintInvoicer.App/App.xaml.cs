@@ -6,8 +6,13 @@ using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.App;
 
+/// <summary>
+/// The program's starting point: sets up the PDF library, styles and error reporting, opens the database, makes
+/// today's backup and shows the main window.
+/// </summary>
 public partial class App : Application
 {
+    /// <summary>The open database, shared by every window.</summary>
     public static Database Db { get; internal set; } = null!;
 
     /// <summary>Why the last automatic backup failed, if it did; shown on the Settings tab.</summary>
@@ -23,6 +28,7 @@ public partial class App : Application
         string folder = BackupFolder(db, db.LoadSettings());
         try
         {
+            // AUDIT: file write. Today's backup of the database, in the backup folder (see DatabaseBackup).
             DatabaseBackup.DailyIfDue(db.FilePath, folder, DateTime.Now);
             BackupProblem = null;
         }
@@ -32,6 +38,7 @@ public partial class App : Application
         }
     });
 
+    // Runs once when the program starts.
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);

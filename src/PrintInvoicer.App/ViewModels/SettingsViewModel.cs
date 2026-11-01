@@ -8,6 +8,10 @@ using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.App.ViewModels;
 
+/// <summary>
+/// The Settings tab: rates, invoice details, update and backup options, and the backup and folder buttons. Edits are
+/// kept in memory until Save settings.
+/// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly Database _db;
@@ -19,6 +23,7 @@ public partial class SettingsViewModel : ObservableObject
     // so saving writes the counter only when it was edited here; otherwise it would set the sequence back.
     private int _loadedNextInvoice;
 
+    /// <summary>Loads the saved settings and the backup status.</summary>
     public SettingsViewModel(Database db)
     {
         _db = db;
@@ -27,6 +32,7 @@ public partial class SettingsViewModel : ObservableObject
         RefreshBackupStatus();
     }
 
+    /// <summary>The database file, shown in the Data section.</summary>
     public string DatabasePath => _db.FilePath;
 
     public string BackupFolder
@@ -53,6 +59,7 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Back up now button: a backup kept until deleted by hand.
     private void BackUpNow()
     {
         try
@@ -69,8 +76,10 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Opens the backup folder in Explorer, creating it first if needed.
     private void OpenBackupFolder()
     {
+        // AUDIT: file write. Creates the backup folder if it does not exist.
         try { Directory.CreateDirectory(BackupFolder); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { BackupStatus = ex.Message; return; }
         OpenFolder(BackupFolder);
@@ -96,6 +105,7 @@ public partial class SettingsViewModel : ObservableObject
 
         try
         {
+            // AUDIT: file write. Replaces all data with the chosen backup (after backing up the current data).
             DatabaseBackup.Restore(dlg.FileName, _db.FilePath, BackupFolder, DateTime.Now);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or Microsoft.Data.Sqlite.SqliteException)
@@ -104,6 +114,7 @@ public partial class SettingsViewModel : ObservableObject
             return;
         }
 
+        // AUDIT: opens a program. Starts PrintInvoicer itself again after a restore, then this copy closes.
         if (Environment.ProcessPath is string exe) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
         Application.Current.Shutdown();
     }
@@ -121,6 +132,7 @@ public partial class SettingsViewModel : ObservableObject
     public void RefreshPreview() => OnPropertyChanged(nameof(NextInvoicePreview));
 
     [RelayCommand]
+    // The Save settings button. The invoice counter is only written if it was edited here (see _loadedNextInvoice).
     private void Save()
     {
         if (Model.NextInvoiceNumber < 1) Model.NextInvoiceNumber = 1;
@@ -142,6 +154,7 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Undo changes button: reloads the saved settings.
     private void Revert()
     {
         Model = _db.LoadSettings();
@@ -154,15 +167,18 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Open buttons for the data and invoice folders.
     private void OpenDataFolder() => OpenFolder(Path.GetDirectoryName(_db.FilePath)!);
 
     [RelayCommand]
     private void OpenInvoiceFolder()
     {
+        // AUDIT: file write. Creates the invoice folder if it does not exist.
         Directory.CreateDirectory(InvoiceFolder);
         OpenFolder(InvoiceFolder);
     }
 
+    // AUDIT: opens a program. Shows a folder in Explorer, only when the user clicks an Open button.
     private static void OpenFolder(string path)
     {
         try

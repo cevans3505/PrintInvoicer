@@ -13,6 +13,10 @@ using PrintInvoicer.Core.Slicing;
 
 namespace PrintInvoicer.App.ViewModels;
 
+/// <summary>
+/// Everything the job window shows and does: the job's fields, its parts and plates, live totals and warnings, adding
+/// files or typed-in plates, and saving, previewing and finalizing. Prices come from PricingCalculator.
+/// </summary>
 public partial class JobEditorViewModel : ObservableObject
 {
     private readonly Database _db;
@@ -42,6 +46,7 @@ public partial class JobEditorViewModel : ObservableObject
     /// <summary>Replaces the notes box shown after adding files; lets tests run without a dialog.</summary>
     public Action<string>? ShowNotes { get; set; }
 
+    /// <summary>Loads today's prices and remembered material choices, builds the part list and works out the totals.</summary>
     public JobEditorViewModel(Database db, Job job)
     {
         _db = db;
@@ -55,6 +60,7 @@ public partial class JobEditorViewModel : ObservableObject
         IsDirty = job.Id == 0;
     }
 
+    // The materials and printers offered in the window's dropdowns, and the Add plate by hand menu.
     private void LoadOptions()
     {
         var usedFilaments = Job.AllPlates.SelectMany(p => p.Filaments).Select(f => f.FilamentId).ToHashSet();
@@ -75,6 +81,7 @@ public partial class JobEditorViewModel : ObservableObject
     internal List<Printer> PrintersFor(PrintTechnology t, long? current) =>
         _book.Printers.Values.Where(p => p.Technology == t && (p.Active || p.Id == current)).OrderBy(p => p.Name).ToList();
 
+    // The job's fields, bound to the boxes at the top of the window. Each change marks the job as changed.
     public string WindowTitle => string.IsNullOrWhiteSpace(Job.Title) ? "New job" : Job.Title;
 
     public string Title
@@ -218,6 +225,7 @@ public partial class JobEditorViewModel : ObservableObject
 
     internal Filament? FindFilament(long? id) => Book.Filament(id);
 
+    // Remembers the filament picked for a slicer slot, so the next file with the same slot gets it automatically.
     internal void RememberFilament(PlateFilament slot)
     {
         if (slot.FilamentId is not long id) return;
@@ -226,6 +234,7 @@ public partial class JobEditorViewModel : ObservableObject
         _db.SaveMapping(key, id);
     }
 
+    // Remembers the resin picked for a slicer resin profile, so the next file with that profile gets it automatically.
     internal void RememberResin(PlateResin resin)
     {
         if (resin.ResinId is not long id || string.IsNullOrWhiteSpace(resin.SlicerProfile)) return;
@@ -234,6 +243,7 @@ public partial class JobEditorViewModel : ObservableObject
         _db.SaveMapping(key, id);
     }
 
+    // Called after any edit: marks the job unsaved and recalculates.
     internal void Changed()
     {
         if (_loading) return;
@@ -241,6 +251,7 @@ public partial class JobEditorViewModel : ObservableObject
         Recalculate();
     }
 
+    // Prices the job again and refreshes every total, warning and extra-cost checkbox in the window.
     private void Recalculate()
     {
         Quote = PricingCalculator.Calculate(Job, Book);
@@ -266,6 +277,7 @@ public partial class JobEditorViewModel : ObservableObject
             OnPropertyChanged(name);
     }
 
+    // Rebuilds the part and plate cards after parts are added, removed or merged.
     private void RebuildParts()
     {
         _loading = true;
@@ -277,6 +289,7 @@ public partial class JobEditorViewModel : ObservableObject
     // ---------------- Commands ----------------
 
     [RelayCommand]
+    // The Add sliced files button: lets the user pick files, then adds them.
     private void AddFiles()
     {
         var dlg = new OpenFileDialog
@@ -288,6 +301,10 @@ public partial class JobEditorViewModel : ObservableObject
         if (dlg.ShowDialog() == true) AddFiles(dlg.FileNames);
     }
 
+    /// <summary>
+    /// Reads each file (read-only) and adds its plates to the job. The first file for a kind of printer that is not set
+    /// up yet creates a printer with starting rates. Problems are collected and shown once at the end.
+    /// </summary>
     public void AddFiles(IEnumerable<string> paths)
     {
         if (Job.Finalized)
@@ -352,6 +369,7 @@ public partial class JobEditorViewModel : ObservableObject
         Changed();
     }
 
+    // Removes a part, or a plate (and its part when that was its last plate), from the job.
     internal void RemovePart(PartViewModel part)
     {
         Job.Parts.Remove(part.Part);
@@ -367,6 +385,7 @@ public partial class JobEditorViewModel : ObservableObject
         else Changed();
     }
 
+    // Switches an extra cost on or off for this job only.
     internal void SetExtraCostIncluded(ExtraCost cost, bool included)
     {
         bool changed = included ? Job.ExcludedExtraCosts.Remove(cost.Id) : Job.ExcludedExtraCosts.Add(cost.Id);
@@ -374,6 +393,7 @@ public partial class JobEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Save button.
     private void Save() => TrySave();
 
     /// <summary>Saves the job. Returns false if the user backed out because the invoice number is already used.</summary>
@@ -446,6 +466,7 @@ public partial class JobEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Makes a finalized invoice a draft again after asking: unlocks it and reprices it at today's rates.
     private void RevertToDraft()
     {
         if (!Job.Finalized) return;
@@ -456,6 +477,7 @@ public partial class JobEditorViewModel : ObservableObject
         Changed();
     }
 
+    // Refreshes everything in the window that depends on the invoice's draft or finalized state.
     private void RaiseInvoiceState()
     {
         OnPropertyChanged(nameof(InvoiceNumber));
@@ -468,6 +490,7 @@ public partial class JobEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Saves, then creates and opens the internal detail sheet PDF.
     private void CreateDetail()
     {
         if (!TrySave()) return;
@@ -475,6 +498,7 @@ public partial class JobEditorViewModel : ObservableObject
     }
 
     private static void OpenPdf(string path) =>
+        // AUDIT: opens a program. The PDF just created, in the user's default PDF viewer.
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
 }
 
@@ -486,6 +510,7 @@ public class ExtraCostToggleViewModel : ObservableObject
 {
     private readonly JobEditorViewModel _editor;
 
+    /// <summary>The extra cost this checkbox is for, and its label, e.g. "IPA and gloves ($0.75 per print)".</summary>
     public ExtraCost Cost { get; }
 
     public ExtraCostToggleViewModel(ExtraCost cost, JobEditorViewModel editor)

@@ -25,6 +25,7 @@ public static class InvoicePrinter
         var dialog = new PrintDialog { UserPageRangeEnabled = true };
         if (dialog.ShowDialog() != true) return false;
 
+        // AUDIT: prints. Sends the pages to the printer the user picked in the Windows print dialog.
         dialog.PrintDocument(BuildDocument(pages).DocumentPaginator, jobName);
         return true;
     }

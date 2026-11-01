@@ -13,6 +13,7 @@ namespace PrintInvoicer.Core.Slicing;
 /// </summary>
 public static partial class GooFileReader
 {
+    // The file extension and the fixed 8-byte "magic" tag every .goo file carries at byte 4.
     public const string Extension = ".goo";
 
     private static readonly byte[] Magic = [0x07, 0x00, 0x00, 0x00, 0x44, 0x4C, 0x50, 0x00];
@@ -27,11 +28,17 @@ public static partial class GooFileReader
     private const int VolumeAt = PrintSecondsAt + 4;
     public const int HeaderLength = LayersAt + 167;                                             // 195477
 
+    /// <summary>True for .goo files; used to pick this reader.</summary>
     public static bool CanRead(string path) => path.EndsWith(Extension, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Reads only the fixed-size header (about 190 KB) of a .goo file, read-only. The layer images after it are never
+    /// read, and nothing in the file is executed.
+    /// </summary>
     public static SlicedFile Read(string path)
     {
         var header = new byte[HeaderLength];
+        // AUDIT: file read. Reads the header of the .goo file the user chose, read-only.
         using (var fs = File.OpenRead(path))
         {
             if (fs.ReadAtLeast(header, HeaderLength, throwOnEndOfStream: false) < HeaderLength)
@@ -40,11 +47,14 @@ public static partial class GooFileReader
         return Parse(path, header);
     }
 
+    /// <summary>Turns header bytes into a one-plate SlicedFile, rejecting anything that is not a valid, sensible header.</summary>
     public static SlicedFile Parse(string path, ReadOnlySpan<byte> h)
     {
+        // The magic tag and the two fixed delimiters confirm the layout before any field is trusted.
         if (h.Length < HeaderLength || !h.Slice(4, 8).SequenceEqual(Magic) || !IsDelimiter(h, BigPreviewAt - 2) || !IsDelimiter(h, LayersAt - 2))
             throw new InvalidDataException("This is not an ELEGOO .goo sliced file, or it uses a version this app does not know.");
 
+        // The fields used: printer name, resin profile name, layer count, layer height, print time and resin volume.
         string printer = Text(h.Slice(PrinterNameAt, 32));
         string profile = Text(h.Slice(ProfileNameAt, 32));
         int layers = BinaryPrimitives.ReadInt32BigEndian(h.Slice(LayersAt));
@@ -63,6 +73,7 @@ public static partial class GooFileReader
         if (!float.IsFinite(volumeMm3) || volumeMm3 < 0 || volumeMm3 > (float)SliceLimits.MaxMl * 1000f)
             throw Damaged($"a resin volume of {volumeMm3.ToString(CultureInfo.InvariantCulture)} mm³");
 
+        // A resin file is one plate. Volume is converted from mm3 to mL; the part count is not in the file.
         var plate = new SlicedPlate(1, seconds, [], [], Preview(h.Slice(BigPreviewAt, 2 * BigPreviewSize * BigPreviewSize), BigPreviewSize))
         {
             Resin = new SlicedResin(profile, Math.Round((decimal)volumeMm3 / 1000m, 2)),
@@ -89,16 +100,21 @@ public static partial class GooFileReader
     }
 
     [GeneratedRegex(@"\.(stl|obj|3mf|lys|lyt|chitubox)(?=[_\s.]|$)", RegexOptions.IgnoreCase)]
+    // A model file extension inside the name, where slicers start appending their settings.
     private static partial Regex MeshSuffix();
 
     [GeneratedRegex(@"[_\s-]+\d{12,14}$")]
+    // A trailing date-time stamp such as _202501282210.
     private static partial Regex TrailingStamp();
 
+    // The error shown to the user for a damaged .goo file.
     private static InvalidDataException Damaged(string what) =>
         new($"This .goo file looks damaged: its header gives {what}. Slice the model again and save a new .goo file.");
 
+    // The spec puts a CR LF pair after each preview image.
     private static bool IsDelimiter(ReadOnlySpan<byte> h, int at) => h[at] == 0x0D && h[at + 1] == 0x0A;
 
+    // A fixed-width, zero-padded text field.
     private static string Text(ReadOnlySpan<byte> b)
     {
         int end = b.IndexOf((byte)0);
@@ -111,6 +127,7 @@ public static partial class GooFileReader
     /// </summary>
     private static byte[]? Preview(ReadOnlySpan<byte> data, int size)
     {
+        // Expand each 16-bit RGB565 pixel to 8-bit red, green and blue, fully opaque.
         var rgba = new byte[size * size * 4];
         bool any = false;
         for (int i = 0; i < size * size; i++)
@@ -128,6 +145,9 @@ public static partial class GooFileReader
         return PngWriter.EncodeRgba(size, size, rgba);
     }
 
+    // Flood fill from every edge pixel: pixels close to the top-left corner's color, and connected to the edge,
+    // become transparent. Parts are not touched even if they share the background color, as long as they are
+    // enclosed by other colors.
     private static void ClearBackground(byte[] rgba, int size)
     {
         int bg = Rgb(rgba, 0);
@@ -152,8 +172,10 @@ public static partial class GooFileReader
         }
     }
 
+    // Pixel p's color packed as 0xRRGGBB.
     private static int Rgb(byte[] rgba, int p) => rgba[p * 4] << 16 | rgba[p * 4 + 1] << 8 | rgba[p * 4 + 2];
 
+    // True when two colors differ by at most 8 in each channel, to absorb the preview's rounding.
     private static bool Near(int a, int b) =>
         Math.Abs((a >> 16) - (b >> 16)) <= 8 && Math.Abs(((a >> 8) & 255) - ((b >> 8) & 255)) <= 8 && Math.Abs((a & 255) - (b & 255)) <= 8;
 }

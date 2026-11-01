@@ -10,6 +10,7 @@ namespace PrintInvoicer.App;
 /// </summary>
 public static class WindowLayout
 {
+    /// <summary>A window's saved position, size and maximized state.</summary>
     public record Placement(double Left, double Top, double Width, double Height, bool Maximized);
 
     /// <summary>Where layouts are kept; tests point it elsewhere.</summary>
@@ -31,6 +32,7 @@ public static class WindowLayout
         window.Closed += (_, _) => Save(key, window);
     }
 
+    // Saves the window's normal size and position (even if it is maximized) when it closes.
     private static void Save(string key, Window window)
     {
         // RestoreBounds is the normal size even while maximized or minimized.
@@ -47,6 +49,7 @@ public static class WindowLayout
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            // AUDIT: file write. %LOCALAPPDATA%\PrintInvoicer\window-layout.json: window positions and sizes only.
             File.WriteAllText(FilePath, JsonSerializer.Serialize(all, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -55,8 +58,10 @@ public static class WindowLayout
         }
     }
 
+    // The size set on the window, or its actual size if none was set.
     private static double Size(double set, double actual) => double.IsNaN(set) || set <= 0 ? actual : set;
 
+    // Reads all saved layouts; a missing or damaged file means none are saved.
     private static Dictionary<string, Placement> Load()
     {
         try

@@ -25,13 +25,16 @@ public partial class UpdateService : ObservableObject
     /// <summary>The repository whose releases are checked. A fork that publishes its own releases changes this.</summary>
     public const string Repository = "cevans3505/PrintInvoicer";
 
+    /// <summary>The project's releases page, opened by Download when no specific release is known.</summary>
     public static string ReleasesPage => $"https://github.com/{Repository}/releases";
 
+    // What is remembered between runs: when GitHub was last asked, and the newest release it reported.
     private record State(DateTime? LastCheckUtc, string? LatestTag, string? LatestUrl);
 
     private readonly Func<CancellationToken, Task<ReleaseInfo?>> _fetch;
     private readonly string _statePath;
 
+    /// <summary>Reads the running version from the program itself. Tests can pass a fake GitHub and another state file.</summary>
     public UpdateService(Version? installed = null, Func<CancellationToken, Task<ReleaseInfo?>>? fetch = null, string? statePath = null)
     {
         Installed = ReleaseVersion.Normalize(installed ?? Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0));
@@ -49,6 +52,7 @@ public partial class UpdateService : ObservableObject
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private bool _checking;
 
+    /// <summary>The text of the update bar.</summary>
     public string BarText => Available is ReleaseInfo r
         ? $"PrintInvoicer {ReleaseVersion.Display(r.Version)} is available. You have {InstalledText}."
         : "";
@@ -84,6 +88,7 @@ public partial class UpdateService : ObservableObject
 
     private bool _lastFetchFailed;
 
+    // Shows the bar when the release is newer than this copy; a manual check also reports "up to date" or a failure.
     private void Apply(ReleaseInfo? latest, bool manual)
     {
         if (latest is not null && ReleaseVersion.IsNewer(latest.Version, Installed))
@@ -112,9 +117,11 @@ public partial class UpdateService : ObservableObject
         string url = Available?.Url ?? ReleasesPage;
         // Only ever open this repository's pages, whatever the API returned.
         if (!url.StartsWith($"https://github.com/{Repository}/", StringComparison.OrdinalIgnoreCase)) url = ReleasesPage;
+        // AUDIT: opens a program. The release page in the user's browser, only when they click Download.
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 
+    // Asks GitHub (10 second limit) and remembers the answer; if GitHub cannot be reached, the last answer is used.
     private async Task<ReleaseInfo?> FetchAndRememberAsync()
     {
         ReleaseInfo? latest;
@@ -133,6 +140,7 @@ public partial class UpdateService : ObservableObject
         return latest;
     }
 
+    // The two fields read from GitHub's reply; everything else in it is ignored.
     private sealed class LatestRelease
     {
         [JsonPropertyName("tag_name")] public string? TagName { get; set; }
@@ -141,6 +149,7 @@ public partial class UpdateService : ObservableObject
 
     private static readonly HttpClient Http = CreateClient();
 
+    // GitHub requires a User-Agent header on API requests.
     private static HttpClient CreateClient()
     {
         var c = new HttpClient();
@@ -152,6 +161,8 @@ public partial class UpdateService : ObservableObject
     /// <summary>GitHub's latest published (non-draft, non-prerelease) release; null when the repo has none.</summary>
     private static async Task<ReleaseInfo?> FetchLatestAsync(CancellationToken ct)
     {
+        // AUDIT: network. The app's only network request: a GET of this repository's latest public release from GitHub's
+        // API. It sends nothing about you or your data, and only reads the release's tag and page address.
         using var response = await Http.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest", ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
@@ -159,9 +170,11 @@ public partial class UpdateService : ObservableObject
         return ReleaseVersion.Parse(release?.TagName) is Version v ? new ReleaseInfo(v, release!.HtmlUrl ?? ReleasesPage) : null;
     }
 
+    // The newest release remembered from the last check.
     private static ReleaseInfo? FromState(State s) =>
         ReleaseVersion.Parse(s.LatestTag) is Version v ? new ReleaseInfo(v, s.LatestUrl ?? ReleasesPage) : null;
 
+    // Reads the remembered check result; a missing or damaged file just means "never checked".
     private State LoadState()
     {
         try
@@ -179,6 +192,7 @@ public partial class UpdateService : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_statePath)!);
+            // AUDIT: file write. %LOCALAPPDATA%\PrintInvoicer\update-check.json: when GitHub was last asked and its answer.
             File.WriteAllText(_statePath, JsonSerializer.Serialize(s));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

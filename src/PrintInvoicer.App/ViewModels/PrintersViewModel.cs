@@ -21,12 +21,14 @@ public partial class PrintersViewModel : ObservableObject
     /// <summary>Raised after any edit, so job totals and the Materials tab can follow.</summary>
     public event Action? Changed;
 
+    /// <summary>Loads both lists from the database.</summary>
     public PrintersViewModel(Database db)
     {
         _db = db;
         Reload();
     }
 
+    /// <summary>Reloads printers and extra costs, e.g. after a job window added a printer.</summary>
     public void Reload()
     {
         Printers.Clear();
@@ -35,6 +37,7 @@ public partial class PrintersViewModel : ObservableObject
         foreach (var e in _db.GetExtraCosts()) ExtraCosts.Add(new ExtraCostRowViewModel(e, this));
     }
 
+    // Saves an edited row straight to the database and lets the rest of the app reprice.
     internal void Save(Printer p)
     {
         _db.SavePrinter(p);
@@ -53,6 +56,7 @@ public partial class PrintersViewModel : ObservableObject
     [RelayCommand]
     private void AddResinPrinter() => AddPrinter(PrintTechnology.Resin);
 
+    // Adds a printer of the chosen kind with starting rates, saved at once, for the user to edit.
     private void AddPrinter(PrintTechnology t)
     {
         var p = Printer.NewDefault(t);
@@ -64,6 +68,7 @@ public partial class PrintersViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Deletes the selected printer after asking; one used by saved jobs is made inactive instead.
     private void DeletePrinter()
     {
         if (SelectedPrinter is null) return;
@@ -81,6 +86,7 @@ public partial class PrintersViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Adds an extra cost with example values, saved at once, for the user to edit.
     private void AddExtraCost()
     {
         var e = new ExtraCost { Name = "New cost", Cost = 0.50m, Basis = CostBasis.PerPrint };
@@ -92,6 +98,7 @@ public partial class PrintersViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Deletes the selected extra cost after asking.
     private void DeleteExtraCost()
     {
         if (SelectedExtraCost is null) return;
@@ -105,8 +112,10 @@ public partial class PrintersViewModel : ObservableObject
     }
 }
 
+/// <summary>A choice in a grid dropdown: the value, and its wording.</summary>
 public record ChoiceOption<T>(T Value, string Name);
 
+/// <summary>One printer row. Edits save straight to the database.</summary>
 public class PrinterRowViewModel : ObservableObject
 {
     private readonly PrintersViewModel _owner;
@@ -146,6 +155,7 @@ public class PrinterRowViewModel : ObservableObject
     }
 }
 
+/// <summary>One extra cost row. Edits save straight to the database.</summary>
 public class ExtraCostRowViewModel : ObservableObject
 {
     private readonly PrintersViewModel _owner;

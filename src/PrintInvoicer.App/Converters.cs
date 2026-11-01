@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 
 namespace PrintInvoicer.App;
 
+/// <summary>Shows PNG bytes (a plate picture) as an image in the window. Decoding only; nothing is saved.</summary>
 public class BytesToImageConverter : IValueConverter
 {
     public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -23,6 +24,7 @@ public class BytesToImageConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
+/// <summary>Turns a #RRGGBB color into the brush that paints a color swatch; invalid colors show as transparent.</summary>
 public class HexToBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

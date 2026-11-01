@@ -1,5 +1,6 @@
 namespace PrintInvoicer.Core.Models;
 
+/// <summary>The two kinds of printer the app prices: FDM (filament) and resin (MSLA). The numbers are stored in the database.</summary>
 public enum PrintTechnology { Fdm = 0, Resin = 1 }
 
 /// <summary>
@@ -12,6 +13,7 @@ public class Printer
     public string Name { get; set; } = "";
     public PrintTechnology Technology { get; set; }
 
+    /// <summary>What you charge per hour of printing on this printer, and how much power it draws while printing.</summary>
     public decimal MachineRatePerHour { get; set; }
     public decimal Watts { get; set; }
 
@@ -22,8 +24,10 @@ public class Printer
     public bool Active { get; set; } = true;
     public string Notes { get; set; } = "";
 
+    /// <summary>Multiplier applied to your own material printed on this printer: (1 + waste) x (1 + markup).</summary>
     public decimal MaterialFactor => (1 + WasteAllowance) * (1 + MaterialMarkup);
 
+    /// <summary>"FDM" or "Resin", for display.</summary>
     public string TechnologyName => TechnologyLabel(Technology);
 
     public static string TechnologyLabel(PrintTechnology t) => t == PrintTechnology.Resin ? "Resin" : "FDM";

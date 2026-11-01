@@ -17,6 +17,8 @@ public enum InvoiceKind { Preview, Final, Internal }
 /// rates of each printer used.
 /// </summary>
 
+// Builds every PDF: the customer invoice (CustomerBody), the internal detail sheet (Body) and previews. Each page
+// is laid out with QuestPDF from the job and its quote; nothing is calculated here except display formatting.
 public static class InvoicePdf
 {
     private const string Accent = "#1F6FB2";
@@ -24,6 +26,7 @@ public static class InvoicePdf
     private const string Rule = "#D8DDE3";
     private const string FailureText = "#A04000";
 
+    /// <summary>Where PDFs go when no folder is set in Settings: Documents\PrintInvoicer\Invoices.</summary>
     public static string DefaultFolder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintInvoicer", "Invoices");
 
@@ -47,6 +50,8 @@ public static class InvoicePdf
         };
         string path = Path.Combine(folder, name);
 
+        // AUDIT: file write. Saves the PDF to the invoice folder (or, for previews, the temporary previews folder),
+        // replacing an older copy of the same invoice.
         Build(job, quote, book, kind).GeneratePdf(path);
         return path;
     }
@@ -57,6 +62,7 @@ public static class InvoicePdf
             .GenerateImages(new ImageGenerationSettings { ImageFormat = ImageFormat.Png, RasterDpi = dpi })
             .ToList();
 
+    // The page: Letter size, the header, the body for this kind of PDF, and the footer with page numbers.
     private static Document Build(Job job, JobQuote quote, PriceBook book, InvoiceKind kind) =>
         Document.Create(doc => doc.Page(page =>
         {
@@ -86,6 +92,7 @@ public static class InvoicePdf
             });
         }));
 
+    // Your name and contact line, who it is billed to, and the invoice number, date, terms and paid stamp.
     private static void Header(IContainer c, Job job, AppSettings s, InvoiceKind kind)
     {
         c.Row(row =>
@@ -127,6 +134,7 @@ public static class InvoicePdf
         });
     }
 
+    // The internal detail sheet: every plate with its material table, hours, rates and extra costs, then a summary.
     private static void Body(IContainer c, Job job, JobQuote q, AppSettings s, Func<long?, Filament?> filament, bool detailed)
     {
         c.Column(col =>
@@ -534,6 +542,7 @@ public static class InvoicePdf
             return $"{Pieces(plate.TotalObjects)}: {prints} with {plate.PartsPerPlate} per plate, {time} per print";
         }));
 
+    // Small helpers for wording, labels and table cells used by both layouts.
     private static string Pieces(int n) => n == 1 ? "1 piece" : $"{n} pieces";
 
     private static IEnumerable<Printer> PrintersUsed(JobQuote q) =>
@@ -634,6 +643,7 @@ public static class InvoicePdf
 
     private static string PrettyName(string name) => name.Replace('_', ' ').Trim();
 
+    // A job title made safe to use in a file name.
     private static string Safe(string s)
     {
         var invalid = Path.GetInvalidFileNameChars();

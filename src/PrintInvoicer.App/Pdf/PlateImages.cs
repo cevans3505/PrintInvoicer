@@ -14,6 +14,7 @@ namespace PrintInvoicer.App.Pdf;
 /// </summary>
 public static class PlateImages
 {
+    /// <summary>The best available picture of a plate for an invoice, trimmed to the parts; null if there is none.</summary>
     public static byte[]? ForInvoice(JobPlate plate)
     {
         // Jobs imported before 1.6 stored the 128 px preview; prefer the 512 px render while the file is still around.
@@ -24,6 +25,7 @@ public static class PlateImages
         return png is null ? null : TrimTransparentMargin(png);
     }
 
+    // The picture's width in pixels, or 0 if it cannot be decoded.
     private static int PixelWidth(byte[] png)
     {
         try { return Decode(png).PixelWidth; }

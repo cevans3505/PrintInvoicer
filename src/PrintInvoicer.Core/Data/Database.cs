@@ -14,11 +14,18 @@ public class Database
 {
     private readonly string _connectionString;
 
+    /// <summary>The database file in use, normally Documents\PrintInvoicer\printinvoicer.db.</summary>
     public string FilePath { get; }
 
+    /// <summary>
+    /// Opens (or creates) the database file, adds any tables or columns a newer version needs, and freezes the prices of
+    /// invoices finalized before prices were frozen. The folder is created if needed. This is the only place the app
+    /// creates or upgrades its data.
+    /// </summary>
     public Database(string filePath)
     {
         FilePath = filePath;
+        // AUDIT: file write. Creates the data folder if it does not exist (normally Documents\PrintInvoicer).
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
         _connectionString = new SqliteConnectionStringBuilder { DataSource = filePath, ForeignKeys = true }.ToString();
         EnsureCreated();
@@ -48,16 +55,25 @@ public class Database
         }
     }
 
+    /// <summary>Where the app keeps its data: Documents\PrintInvoicer\printinvoicer.db for the current Windows user.</summary>
     public static string DefaultPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintInvoicer", "printinvoicer.db");
 
+    // A fresh connection for each operation; SQLite pools them, and foreign keys are switched on so deleting a job
+    // also deletes its parts, plates and slots.
     private SqliteConnection Open()
     {
+        // AUDIT: file read/write. Every database read and write goes through a connection opened here, to the one
+        // database file given to the constructor.
         var c = new SqliteConnection(_connectionString);
         c.Open();
         return c;
     }
 
+    /// <summary>
+    /// Creates any missing tables, adds columns introduced by later versions to an older database, moves pre-3.0 rates
+    /// into a printer, and seeds starter materials into a brand-new database. Safe to run on every start.
+    /// </summary>
     private void EnsureCreated()
     {
         using var c = Open();
@@ -106,6 +122,7 @@ public class Database
                 active INTEGER NOT NULL, notes TEXT NOT NULL);
             """);
 
+        // A database with no jobs, settings or filaments yet is new, and gets the example resin below.
         bool brandNew = Scalar<long>(c, "SELECT COUNT(*) FROM jobs") == 0 && Scalar<long>(c, "SELECT COUNT(*) FROM settings") == 0
                         && Scalar<long>(c, "SELECT COUNT(*) FROM filaments") == 0;
 
@@ -180,6 +197,8 @@ public class Database
         Exec(c, "UPDATE plates SET printer_id = $id WHERE printer_id IS NULL AND technology = 0", ("$id", p.Id));
     }
 
+    // Adds a column only when the table does not have it yet. Table, column and definition are fixed strings in this
+    // file, never user input.
     private static void AddColumnIfMissing(SqliteConnection c, string table, string column, string definition)
     {
         if (Scalar<long>(c, $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = $col", ("$col", column)) == 0)
@@ -188,9 +207,14 @@ public class Database
 
     // ---------------- Settings ----------------
 
+    // Settings are stored as key/value rows, one per AppSettings property.
     private static readonly PropertyInfo[] SettingProps = typeof(AppSettings).GetProperties()
         .Where(p => p.CanRead && p.CanWrite).ToArray();
 
+    /// <summary>
+    /// Reads every saved setting; anything not saved yet keeps its default. A value that cannot be read stops with an
+    /// error naming it, rather than guessing a replacement that would change invoice totals.
+    /// </summary>
     public AppSettings LoadSettings()
     {
         var s = new AppSettings();
@@ -223,6 +247,7 @@ public class Database
         return s;
     }
 
+    /// <summary>Saves every setting, in one transaction.</summary>
     public void SaveSettings(AppSettings s)
     {
         using var c = Open();
@@ -255,6 +280,7 @@ public class Database
     /// </summary>
     public string PeekNextInvoiceNumber(DateTime date) => NextInvoiceNumber(date).Number;
 
+    // The next free invoice number for this date, and its sequence number.
     private (string Number, int Sequence) NextInvoiceNumber(DateTime date)
     {
         var s = LoadSettings();
@@ -264,6 +290,7 @@ public class Database
         using (var c = Open())
         using (var cmd = c.CreateCommand())
         {
+            // The highest sequence already used with this year's prefix.
             cmd.CommandText = "SELECT invoice_number FROM jobs WHERE invoice_number IS NOT NULL";
             using var r = cmd.ExecuteReader();
             while (r.Read())
@@ -275,6 +302,8 @@ public class Database
             }
         }
 
+        // The Settings counter can push numbering ahead, but only in the year it was set when the prefix has a year in it.
+        // Numbers already taken (for example typed in by hand) are skipped.
         bool counterApplies = !s.InvoicePrefix.Contains("{yyyy}") || s.NextInvoiceYear == date.Year;
         int seq = Math.Max(counterApplies ? Math.Max(s.NextInvoiceNumber, 1) : 1, highest + 1);
         string number = s.FormatInvoiceNumber(seq, date);
@@ -302,6 +331,7 @@ public class Database
 
     // ---------------- Filaments ----------------
 
+    /// <summary>All filaments, active and inactive, sorted for display.</summary>
     public List<Filament> GetFilaments()
     {
         using var c = Open();
@@ -327,6 +357,7 @@ public class Database
         return list;
     }
 
+    /// <summary>Adds a new filament (Id 0) or updates an existing one.</summary>
     public void SaveFilament(Filament f)
     {
         using var c = Open();
@@ -372,6 +403,10 @@ public class Database
         return true;
     }
 
+    /// <summary>
+    /// Remembered material choices: slicer slot or resin profile key to the filament or resin you picked for it.
+    /// Resin keys start with RESIN|.
+    /// </summary>
     public Dictionary<string, long> GetMappings()
     {
         using var c = Open();
@@ -383,6 +418,7 @@ public class Database
         return d;
     }
 
+    /// <summary>Remembers (or replaces) the material chosen for a slicer slot or resin profile key.</summary>
     public void SaveMapping(string key, long filamentId)
     {
         using var c = Open();
@@ -392,6 +428,7 @@ public class Database
 
     // ---------------- Printers ----------------
 
+    /// <summary>All printers, active and inactive.</summary>
     public List<Printer> GetPrinters()
     {
         using var c = Open();
@@ -417,6 +454,7 @@ public class Database
         return list;
     }
 
+    /// <summary>Adds a new printer (Id 0) or updates an existing one.</summary>
     public void SavePrinter(Printer p)
     {
         using var c = Open();
@@ -457,6 +495,7 @@ public class Database
 
     // ---------------- Resins ----------------
 
+    /// <summary>All resins, active and inactive, sorted for display.</summary>
     public List<Resin> GetResins()
     {
         using var c = Open();
@@ -484,6 +523,7 @@ public class Database
         return list;
     }
 
+    /// <summary>Adds a new resin (Id 0) or updates an existing one.</summary>
     public void SaveResin(Resin r)
     {
         using var c = Open();
@@ -526,6 +566,7 @@ public class Database
 
     // ---------------- Extra costs ----------------
 
+    /// <summary>All extra costs, in the order they were added.</summary>
     public List<ExtraCost> GetExtraCosts()
     {
         using var c = Open();
@@ -550,6 +591,7 @@ public class Database
         return list;
     }
 
+    /// <summary>Adds a new extra cost (Id 0) or updates an existing one.</summary>
     public void SaveExtraCost(ExtraCost e)
     {
         using var c = Open();
@@ -580,6 +622,10 @@ public class Database
 
     // ---------------- Jobs ----------------
 
+    /// <summary>
+    /// Loads every job with its parts, plates and slots: four queries, one per table, joined up in memory by id.
+    /// Newest jobs first.
+    /// </summary>
     public List<Job> GetJobs()
     {
         using var c = Open();
@@ -621,6 +667,7 @@ public class Database
 
         using (var cmd = c.CreateCommand())
         {
+            // Parts, attached to their jobs in their saved order.
             cmd.CommandText = "SELECT id, job_id, name, charge_slicing FROM parts ORDER BY job_id, sort";
             using var r = cmd.ExecuteReader();
             while (r.Read())
@@ -698,6 +745,10 @@ public class Database
         return jobs.Values.ToList();
     }
 
+    /// <summary>
+    /// Saves a job in one transaction: inserts or updates the job row, then deletes its old parts (which deletes their
+    /// plates and slots too) and writes them all again. Either everything is saved or nothing is.
+    /// </summary>
     public void SaveJob(Job job)
     {
         using var c = Open();
@@ -734,6 +785,7 @@ public class Database
             Exec(c, "DELETE FROM parts WHERE job_id = $id", ("$id", job.Id));
         }
 
+        // Write the parts, each part's plates, and each plate's filament slots, keeping their order.
         for (int pi = 0; pi < job.Parts.Count; pi++)
         {
             var part = job.Parts[pi];
@@ -774,6 +826,7 @@ public class Database
         tx.Commit();
     }
 
+    /// <summary>Updates only the Paid flag and date, for the checkbox in the job list.</summary>
     public void SetPaid(long jobId, bool paid, DateTime? paidDate)
     {
         using var c = Open();
@@ -781,6 +834,7 @@ public class Database
             ("$id", jobId), ("$paid", paid ? 1 : 0), ("$date", paidDate is DateTime d ? DateStr(d) : null));
     }
 
+    /// <summary>Updates only the Printed flag and date, for the checkbox in the job list.</summary>
     public void SetPrinted(long jobId, bool printed, DateTime? printedDate)
     {
         using var c = Open();
@@ -788,6 +842,7 @@ public class Database
             ("$id", jobId), ("$p", printed ? 1 : 0), ("$date", printedDate is DateTime d ? DateStr(d) : null));
     }
 
+    /// <summary>Deletes a job; its parts, plates and slots are deleted with it.</summary>
     public void DeleteJob(long id)
     {
         using var c = Open();
@@ -796,18 +851,21 @@ public class Database
 
     // ---------------- helpers ----------------
 
+    // Runs a statement. All values go in as SQL parameters ($name), never pasted into the SQL text.
     private static void Exec(SqliteConnection c, string sql, params (string Name, object? Value)[] args)
     {
         using var cmd = Command(c, sql, args);
         cmd.ExecuteNonQuery();
     }
 
+    // Runs a query that returns one value, such as a COUNT or a new row's id.
     private static T Scalar<T>(SqliteConnection c, string sql, params (string Name, object? Value)[] args)
     {
         using var cmd = Command(c, sql, args);
         return (T)Convert.ChangeType(cmd.ExecuteScalar()!, typeof(T), CultureInfo.InvariantCulture);
     }
 
+    // Builds a command, binding each named parameter that the SQL actually uses.
     private static SqliteCommand Command(SqliteConnection c, string sql, (string Name, object? Value)[] args)
     {
         var cmd = c.CreateCommand();
@@ -820,6 +878,8 @@ public class Database
         return cmd;
     }
 
+    // Conversions for storage: decimals as invariant text (exact, whatever the PC's regional settings), dates as
+    // yyyy-MM-dd, and sets of ids as comma-separated text.
     private static string Str(decimal d) => d.ToString(CultureInfo.InvariantCulture);
     private static HashSet<long> IdSet(string s) =>
         s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => long.Parse(x, CultureInfo.InvariantCulture)).ToHashSet();

@@ -6,6 +6,7 @@ using PrintInvoicer.App.ViewModels;
 
 namespace PrintInvoicer.App;
 
+/// <summary>The job window's code-behind: drag and drop, Enter to commit, and the save prompt on close. The logic is in JobEditorViewModel.</summary>
 public partial class JobEditorWindow : Window
 {
     private readonly JobEditorViewModel _vm;
@@ -23,14 +24,17 @@ public partial class JobEditorWindow : Window
         UpdateHint();
     }
 
+    // Shows the "drag files here" hint only while the job has no parts.
     private void UpdateHint() => EmptyHint.Visibility = _vm.HasParts ? Visibility.Collapsed : Visibility.Visible;
 
+    // Accepts files dragged from Explorer onto the window.
     private void Window_DragOver(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 
+    // Adds the dropped files to the job (they are only read, never changed).
     private void Window_Drop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
@@ -58,6 +62,7 @@ public partial class JobEditorWindow : Window
         }
     }
 
+    // Asks to save unsaved changes before the window closes.
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         // Push the focused field into the view model before checking for changes.

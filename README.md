@@ -42,7 +42,9 @@ post-processing fees, and produces a PDF invoice plus an internal detail sheet.
 > Settings. There is no tracking or telemetry.
 >
 > **Use it at your own risk.** Review the code yourself before relying on it, and check its invoices before you send
-> them. If you find a problem, please [open an issue](https://github.com/cevans3505/PrintInvoicer/issues).
+> them. **[AUDITING.md](AUDITING.md)** lists every place the program touches the network, other programs or files, and
+> each of those lines in the code is marked `AUDIT:` so they are easy to find. If you find a problem, please
+> [open an issue](https://github.com/cevans3505/PrintInvoicer/issues).
 
 ## Install or update
 

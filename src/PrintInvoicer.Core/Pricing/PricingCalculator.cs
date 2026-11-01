@@ -2,12 +2,16 @@ using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.Core.Pricing;
 
+// ---- Results of pricing a job. Plain data built by PricingCalculator.Calculate; nothing here changes the job. ----
+
+/// <summary>One FDM slot's material: grams per print, raw cost per gram, and the material charge for all prints.</summary>
 public record SlotQuote(PlateFilament Slot, Filament? Filament, decimal Grams, decimal CostPerGram, decimal Material)
 {
     /// <summary>Customer-supplied slots: what the material would have cost at your rates (all copies). Not billed.</summary>
     public decimal SuppliedValue { get; init; }
 }
 
+/// <summary>A resin plate's material: mL per print, raw cost per mL, and the material charge for all prints.</summary>
 public record ResinQuote(PlateResin Plate, Resin? Resin, decimal Ml, decimal CostPerMl, decimal Material)
 {
     /// <summary>Customer-supplied resin: what it would have cost at your rates (all copies). Not billed.</summary>
@@ -17,6 +21,7 @@ public record ResinQuote(PlateResin Plate, Resin? Resin, decimal Ml, decimal Cos
 /// <param name="Quantity">How much of the basis was used, e.g. prints, hours or mL, across every copy.</param>
 public record ExtraCostQuote(ExtraCost Cost, decimal Quantity, decimal Amount);
 
+/// <summary>Everything one plate costs across all its prints, on its printer's rates.</summary>
 public record PlateQuote(
     JobPlate Plate,
     Printer Printer,
@@ -28,6 +33,7 @@ public record PlateQuote(
     decimal Machine,
     decimal Electricity)
 {
+    /// <summary>Extra costs charged on this plate's prints.</summary>
     public decimal ExtrasAmount => Extras.Sum(e => e.Amount);
 
     /// <summary>Cost of every copy of this plate, unrounded.</summary>
@@ -37,6 +43,10 @@ public record PlateQuote(
     public decimal MaterialAmount => Resin?.Ml ?? Slots.Sum(s => s.Grams);
 }
 
+/// <summary>
+/// One part's invoice line: its plates' costs, the pieces billed, the price per piece and the line amount
+/// (price per piece x pieces). The sums below feed the summaries in the job window and on the PDFs.
+/// </summary>
 public record PartQuote(JobPart Part, IReadOnlyList<PlateQuote> Plates, int Quantity, decimal UnitPrice, decimal LineAmount)
 {
     public decimal Material => Plates.Sum(p => p.Material);
@@ -49,6 +59,7 @@ public record PartQuote(JobPart Part, IReadOnlyList<PlateQuote> Plates, int Quan
     public decimal Hours => Plates.Sum(p => p.Hours * p.Plate.Copies);
 }
 
+/// <summary>The whole invoice: part lines, fees, extra costs, discount, total and any warnings for the user.</summary>
 public record JobQuote(
     IReadOnlyList<PartQuote> Parts,
     int SlicingCount,
@@ -59,6 +70,7 @@ public record JobQuote(
     IReadOnlyList<ExtraCostQuote> JobExtras,
     IReadOnlyList<string> Warnings)
 {
+    /// <summary>All part lines, and all per-job extra costs.</summary>
     public decimal PartsAmount => Parts.Sum(p => p.LineAmount);
     public decimal JobExtrasAmount => JobExtras.Sum(e => e.Amount);
 
@@ -67,6 +79,7 @@ public record JobQuote(
 
     /// <summary>The job's discount, 0 to 100 percent of the subtotal.</summary>
     public decimal DiscountPercent { get; init; }
+    /// <summary>The discount in dollars, rounded to the cent, and what the customer pays after it.</summary>
     public decimal DiscountAmount => PricingCalculator.Money(Subtotal * DiscountPercent / 100m);
     public decimal Total => Subtotal - DiscountAmount;
 
@@ -79,9 +92,14 @@ public record JobQuote(
         p.Slots.Any(s => s.Slot.CustomerSupplied && s.Filament is null && s.Grams > 0) ||
         p.Resin is { Plate.CustomerSupplied: true, Resin: null, Ml: > 0 });
 
+    /// <summary>Every plate quote of every part.</summary>
     public IEnumerable<PlateQuote> AllPlates => Parts.SelectMany(p => p.Plates);
 }
 
+/// <summary>
+/// Works out what a job costs and what to bill. Pure calculation: it reads the job and a <see cref="PriceBook"/>
+/// and returns a <see cref="JobQuote"/>, without saving anything or touching files.
+/// </summary>
 public static class PricingCalculator
 {
     /// <summary>Prices a job with one FDM printer at default rates; for callers that have no printer list.</summary>
@@ -100,16 +118,19 @@ public static class PricingCalculator
     public static JobQuote Calculate(Job job, PriceBook book)
     {
         var s = book.Settings;
+        // Version 2 rules apply to today's prices; invoices frozen under version 1 keep the old rounding (see PricingRules).
         bool v2 = book.RulesVersion >= 2;
         var warnings = new List<string>();
         var parts = new List<PartQuote>();
         var extras = book.ExtraCosts.Where(e => e.Active && !job.ExcludedExtraCosts.Contains(e.Id)).ToList();
 
+        // ---- Each part: price its plates, then turn the total into a price per piece. ----
         foreach (var part in job.Parts)
         {
             var plates = new List<PlateQuote>();
             foreach (var plate in part.Plates)
             {
+                // The printer whose rates apply, with warnings for a missing printer or an unconfirmed resin part count.
                 var (printer, problem) = book.PrinterFor(plate);
                 if (problem != null) warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {problem}.");
                 if (!plate.PartsCountConfirmed)
@@ -119,6 +140,8 @@ public static class PricingCalculator
 
                 var slots = new List<SlotQuote>();
                 ResinQuote? resin = null;
+                // Material. Resin: one resin for the vat, priced per mL. FDM (below): each AMS slot, priced per gram.
+                // Customer-supplied material is not billed, but its value at your rates is noted for the invoice.
                 if (plate.Technology == PrintTechnology.Resin)
                 {
                     var pr = plate.Resin ??= new PlateResin();
@@ -166,10 +189,12 @@ public static class PricingCalculator
                     }
                 }
 
+                // Machine time and electricity, for every print of the plate.
                 decimal hours = plate.EffectiveHours;
                 decimal machine = hours * printer.MachineRatePerHour * plate.Copies;
                 decimal electricity = hours * printer.Watts / 1000m * s.ElectricityPerKwh * plate.Copies;
 
+                // Extra costs counted per print, per print hour, per mL of resin or per gram of filament.
                 var plateExtras = new List<ExtraCostQuote>();
                 foreach (var e in extras.Where(e => e.Basis != CostBasis.PerJob && e.AppliesToTechnology(plate.Technology)))
                 {
@@ -190,6 +215,7 @@ public static class PricingCalculator
                 plates.Add(new PlateQuote(plate, printer, slots, resin, plateExtras, hours, materialTotal, machine, electricity));
             }
 
+            // Price per piece: the part's cost divided by its pieces, normally rounded to the cent (see the method summary).
             int qty = part.Quantity;
             // Dividing by 3600 s, or by a 750 g spool, leaves a shortfall in decimal's last digit that would turn an
             // exact half cent into $x.xx4999... and round it down; 15 places is far below a cent and far above that shortfall.
@@ -218,6 +244,7 @@ public static class PricingCalculator
         }
 
         var technologies = job.AllPlates.Select(p => p.Technology).ToHashSet();
+        // ---- Charges for the whole job: per-job extra costs, slicing, modeling and post-processing. ----
         var jobExtras = extras
             .Where(e => e.Basis == CostBasis.PerJob && technologies.Any(e.AppliesToTechnology))
             .Select(e => new ExtraCostQuote(e, 1, Money(e.Cost)))
@@ -239,6 +266,7 @@ public static class PricingCalculator
     }
 
     /// <summary>Extra costs that could apply to this job: active, and matching a kind of printer it uses.</summary>
+    /// <summary>Extra costs that could apply to this job: active, and matching a kind of printer it uses.</summary>
     public static IEnumerable<ExtraCost> ApplicableExtras(Job job, PriceBook book)
     {
         var technologies = job.AllPlates.Select(p => p.Technology).ToHashSet();
@@ -248,5 +276,6 @@ public static class PricingCalculator
     /// <summary>How far a part's line may drift from its cost through per-piece rounding before cents give way to 4 decimals.</summary>
     public const decimal SubCentThreshold = 0.50m;
 
+    /// <summary>Rounds to the cent, with exact half cents rounding up.</summary>
     public static decimal Money(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }

@@ -22,6 +22,7 @@ public partial class FilamentsViewModel : ObservableObject
     [ObservableProperty] private bool _showFilaments = true;
     [ObservableProperty] private bool _showResins = true;
 
+    /// <summary>Loads both material lists from the database.</summary>
     public FilamentsViewModel(Database db)
     {
         _db = db;
@@ -30,6 +31,7 @@ public partial class FilamentsViewModel : ObservableObject
         RefreshVisibility();
     }
 
+    /// <summary>Shows the filament list when an FDM printer exists, and the resin list when a resin printer exists.</summary>
     public void RefreshVisibility()
     {
         var printers = _db.GetPrinters().Where(p => p.Active).ToList();
@@ -38,6 +40,7 @@ public partial class FilamentsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Adds a new filament with example values, saved at once, for the user to edit.
     private void Add()
     {
         var f = new Filament { Vendor = "New", Material = "PLA", SpoolPrice = 20m, SpoolGrams = 1000m };
@@ -48,6 +51,7 @@ public partial class FilamentsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Deletes the selected filament after asking; one used by saved jobs is made inactive instead.
     private void Delete()
     {
         if (Selected is null) return;
@@ -67,6 +71,7 @@ public partial class FilamentsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Adds a new resin with example values, saved at once, for the user to edit.
     private void AddResin()
     {
         var r = new Resin { Vendor = "New", Name = "Standard resin", BottlePrice = 30m, BottleSize = 1000m };
@@ -77,6 +82,7 @@ public partial class FilamentsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Deletes the selected resin after asking; one used by saved jobs is made inactive instead.
     private void DeleteResin()
     {
         if (SelectedResin is null) return;
@@ -128,6 +134,7 @@ public class FilamentRowViewModel : ObservableObject
         set => Set(Filament.ColorHex, NormalizeHex(value), (f, v) => f.ColorHex = v, nameof(ColorHex));
     }
 
+    // Colors typed in any case, with or without #, are stored as #RRGGBB.
     internal static string NormalizeHex(string? value)
     {
         value = (value ?? "").Trim().ToUpperInvariant();
@@ -161,6 +168,7 @@ public class ResinRowViewModel : ObservableObject
         _db = db;
     }
 
+    // The bottle size units offered in the Unit column.
     public static string[] UnitOptions { get; } = ["g", "mL"];
 
     private void Set<T>(T current, T value, Action<Resin, T> apply, string name)

@@ -27,6 +27,7 @@ public sealed class PriceBook
     /// </summary>
     public int RulesVersion { get; init; } = PricingRules.Current;
 
+    /// <summary>Indexes everything by id for quick lookups while pricing. Nothing here reads or writes the database.</summary>
     public PriceBook(AppSettings settings, IEnumerable<Filament>? filaments = null, IEnumerable<Resin>? resins = null,
         IEnumerable<Printer>? printers = null, IEnumerable<ExtraCost>? extraCosts = null)
     {
@@ -37,19 +38,23 @@ public sealed class PriceBook
         ExtraCosts = (extraCosts ?? []).ToList();
     }
 
+    /// <summary>Looks up a material by id; null when none is chosen or it no longer exists.</summary>
     public Filament? Filament(long? id) => id is long v && Filaments.TryGetValue(v, out var f) ? f : null;
     public Resin? Resin(long? id) => id is long v && Resins.TryGetValue(v, out var r) ? r : null;
 
     /// <summary>The plate's printer; failing that the first active printer of its kind, or default rates (with a reason).</summary>
     public (Printer Printer, string? Problem) PrinterFor(JobPlate plate)
     {
+        // The plate's own printer, if it still exists and is the right kind.
         if (plate.PrinterId is long id && Printers.TryGetValue(id, out var p) && p.Technology == plate.Technology)
             return (p, null);
 
+        // Otherwise another printer of the same kind, preferring active ones.
         var fallback = Printers.Values.Where(x => x.Technology == plate.Technology).OrderByDescending(x => x.Active).ThenBy(x => x.Id).FirstOrDefault();
         string kind = Printer.TechnologyLabel(plate.Technology);
         if (fallback != null)
             return (fallback, plate.PrinterId is null ? null : $"its printer was deleted, so {fallback.Name} rates are used");
+        // No printer of that kind at all: price with built-in starting rates, and say so.
         return (Printer.NewDefault(plate.Technology), $"no {kind} printer is set up, so default {kind} rates are used. Add one on the Printers tab");
     }
 

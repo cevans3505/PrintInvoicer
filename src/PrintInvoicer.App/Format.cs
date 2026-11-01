@@ -2,6 +2,7 @@ using System.Globalization;
 
 namespace PrintInvoicer.App;
 
+/// <summary>How money, rates and times are written in the app and on invoices (always US dollars).</summary>
 public static class Format
 {
     private static readonly CultureInfo Us = CultureInfo.GetCultureInfo("en-US");
@@ -11,8 +12,10 @@ public static class Format
     /// <summary>A unit rate: cents as usual, but small rates like $0.002 per gram keep their digits.</summary>
     public static string Rate(decimal d) => Math.Round(d, 2) == d ? Money(d) : "$" + d.ToString("0.00##", CultureInfo.InvariantCulture);
 
+    /// <summary>A resin volume, e.g. "37.21 mL".</summary>
     public static string Ml(decimal ml) => $"{ml:0.##} mL";
 
+    /// <summary>A print time as hours:minutes, e.g. "5:31".</summary>
     public static string Duration(int seconds)
     {
         var t = TimeSpan.FromSeconds(seconds);

@@ -14,10 +14,15 @@ using PrintInvoicer.Core.Pricing;
 
 namespace PrintInvoicer.App.ViewModels;
 
+/// <summary>
+/// The main window: the job list with its filters and totals, the actions on selected jobs, and the Materials,
+/// Printers and Settings tabs (each with its own view model).
+/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly Database _db;
 
+    /// <summary>Every job, and the filtered, sorted view of them that the grid shows.</summary>
     public ObservableCollection<JobRowViewModel> Jobs { get; } = new();
     public ICollectionView JobsView { get; }
     public FilamentsViewModel Filaments { get; }
@@ -33,6 +38,7 @@ public partial class MainViewModel : ObservableObject
 
     // ---------------- Filters ----------------
 
+    /// <summary>A choice in a filter dropdown: the value, and its wording.</summary>
     public record Option<T>(T Value, string Name);
 
     public static Option<PaidFilter>[] PaidOptions { get; } =
@@ -107,6 +113,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Clear filters button.
     private void ClearFilters()
     {
         PaidFilter = PaidFilter.Any;
@@ -117,6 +124,7 @@ public partial class MainViewModel : ObservableObject
         DateRange = "All dates";
     }
 
+    // Copies the dropdowns and boxes into the filter, re-filters the grid and updates the totals under it.
     private void ApplyFilter()
     {
         _filter.Paid = PaidFilter;
@@ -143,6 +151,7 @@ public partial class MainViewModel : ObservableObject
         VisibleBreakdown = $"Paid {Format.Money(paid)}     Invoiced, unpaid {Format.Money(owed)}     Drafts {Format.Money(drafts)}";
     }
 
+    /// <summary>Reloads every job from the database and prices it (finalized ones at their frozen prices).</summary>
     public void Refresh()
     {
         long? selectedId = SelectedJob?.Job.Id;
@@ -157,6 +166,7 @@ public partial class MainViewModel : ObservableObject
         Settings.RefreshPreview();
     }
 
+    // The unpaid and to-print summaries at the top right, and the totals under the list.
     internal void UpdateSummary()
     {
         var unpaid = Jobs.Where(j => !j.Paid && j.Job.Finalized).ToList();
@@ -170,6 +180,7 @@ public partial class MainViewModel : ObservableObject
         UpdateVisibleTotals();
     }
 
+    // Saves a Paid or Printed checkbox clicked in the grid straight to the database.
     internal void SetPaid(JobRowViewModel row, bool paid)
     {
         row.Job.Paid = paid;
@@ -192,6 +203,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void MarkNotPrinted() => MarkSelectedPrinted(false);
 
+    // Mark printed / Mark not printed for every selected job.
     private void MarkSelectedPrinted(bool printed)
     {
         // Copy first: refreshing the filter can change the selection while we loop.
@@ -199,6 +211,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The New job button: starts a job with the default customer, discount and next invoice number.
     private void NewJob()
     {
         var s = _db.LoadSettings();
@@ -217,6 +230,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // Opens the selected job in its own window, on a fresh copy so Cancel leaves the list untouched.
     private void OpenJob()
     {
         if (SelectedJob is null) return;
@@ -236,6 +250,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
+    // Deletes the selected jobs after asking.
     private void DeleteJob()
     {
         var rows = SelectedJobs;
@@ -253,8 +268,10 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private string _selectionText = "";
 
+    // The action buttons are enabled only while at least one job is selected.
     public bool HasSelection => SelectedJobs.Count > 0;
 
+    /// <summary>Records which rows are selected and updates the buttons that act on them.</summary>
     public void SetSelection(IEnumerable<JobRowViewModel> rows)
     {
         SelectedJobs = rows.ToList();
@@ -266,6 +283,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
+    // The Preview, Finalize, Open internal and Print buttons for the selected jobs.
     private void PreviewInvoices() => GenerateInvoices(LoadSelected(), _ => InvoiceKind.Preview, print: false);
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -304,6 +322,7 @@ public partial class MainViewModel : ObservableObject
     private void PrintInternalInvoices() => GenerateInvoices(LoadSelected(), _ => InvoiceKind.Internal, print: true);
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
+    // Makes the selected finalized invoices drafts again after asking.
     private void RevertToDraft()
     {
         var jobs = LoadSelected().Where(j => j.Finalized).ToList();
@@ -401,6 +420,7 @@ public partial class MainViewModel : ObservableObject
             else
             {
                 foreach (var w in written)
+                    // AUDIT: opens a program. Each PDF just created, in the user's default PDF viewer.
                     Process.Start(new ProcessStartInfo(w.Path) { UseShellExecute = true });
             }
         }
@@ -417,6 +437,7 @@ public partial class MainViewModel : ObservableObject
                 problems.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
     }
 
+    // A job's name for messages: its title and invoice number.
     private static string Label(Job job)
     {
         string title = string.IsNullOrWhiteSpace(job.Title) ? "(untitled)" : job.Title;
@@ -424,6 +445,7 @@ public partial class MainViewModel : ObservableObject
     }
 }
 
+/// <summary>One row of the job list: the job, its total, and the text shown in each column.</summary>
 public class JobRowViewModel : ObservableObject
 {
     private readonly MainViewModel _owner;
@@ -452,6 +474,7 @@ public class JobRowViewModel : ObservableObject
         [SearchColumn.Status] = Status,
     };
 
+    // Column text.
     public string Title => string.IsNullOrWhiteSpace(Job.Title) ? "(untitled)" : Job.Title;
     public string Invoice => Job.InvoiceNumber ?? "";
     public string Date => JobFilter.ListDate(Job).ToString("yyyy-MM-dd");

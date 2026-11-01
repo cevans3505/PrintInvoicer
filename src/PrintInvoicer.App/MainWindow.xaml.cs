@@ -4,6 +4,7 @@ using PrintInvoicer.App.ViewModels;
 
 namespace PrintInvoicer.App;
 
+/// <summary>The main window's code-behind: wires up the view model, opens job windows and starts the update check.</summary>
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
@@ -28,14 +29,17 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>The window's view model, for startup code and tests.</summary>
     public MainViewModel ViewModel => _vm;
 
     /// <summary>Off in test harnesses, which must not reach the network or touch this PC's update state.</summary>
     public static bool CheckForUpdatesOnLaunch { get; set; } = true;
 
+    // Keeps the view model's list of selected jobs in step with the grid.
     private void Jobs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
         _vm.SetSelection(JobsGrid.SelectedItems.OfType<JobRowViewModel>());
 
+    // Opens the job that was double-clicked.
     private void Jobs_DoubleClick(object sender, MouseButtonEventArgs e)
     {
         // Ignore double clicks on the Paid checkbox or the header.

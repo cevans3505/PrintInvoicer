@@ -5,6 +5,7 @@ namespace PrintInvoicer.Core.Data;
 /// <summary>Starter filament list (prices as of 2026-10-25), loaded into a new database. Edit it on the Materials tab.</summary>
 public static class SeedData
 {
+    /// <summary>Filaments added to a brand-new database so the Materials tab is not empty. The prices are examples.</summary>
     public static IEnumerable<Filament> Filaments() => new[]
     {
         F("Bambu Lab", "PLA Basic", "", "", 24.99m, "Workbook note: slicer files show both $15.99 and $24.99. Set what you actually pay."),
@@ -29,6 +30,7 @@ public static class SeedData
             BottleUnit = BottleUnit.Grams, Density = 1.10m, Notes = "Example. Set your own vendor, price, bottle size and density." },
     };
 
+    // One starter filament on a 1 kg spool.
     private static Filament F(string vendor, string material, string color, string hex, decimal price, string notes = "") =>
         new() { Vendor = vendor, Material = material, ColorName = color, ColorHex = hex, SpoolPrice = price, SpoolGrams = 1000m, Notes = notes };
 }

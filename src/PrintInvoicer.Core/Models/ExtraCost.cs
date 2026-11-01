@@ -30,16 +30,22 @@ public class ExtraCost
     /// </summary>
     public bool ChargeCustomerMaterial { get; set; } = true;
 
+    /// <summary>True for costs counted per gram or per mL, the only ones where customer-supplied material matters.</summary>
     public bool IsMaterialBasis => Basis is CostBasis.PerGramFilament or CostBasis.PerMlResin;
 
     public bool Active { get; set; } = true;
     public string Notes { get; set; } = "";
 
+    /// <summary>
+    /// True when this cost is charged on plates of kind <paramref name="t"/>: it must apply to that kind, and per-mL
+    /// costs only ever apply to resin, per-gram costs only to FDM.
+    /// </summary>
     public bool AppliesToTechnology(PrintTechnology t) =>
         (AppliesTo is null || AppliesTo == t) &&
         !(Basis == CostBasis.PerMlResin && t != PrintTechnology.Resin) &&
         !(Basis == CostBasis.PerGramFilament && t != PrintTechnology.Fdm);
 
+    /// <summary>The basis in words, as shown in the Printers tab and the job window.</summary>
     public static string BasisLabel(CostBasis b) => b switch
     {
         CostBasis.PerJob => "per job",

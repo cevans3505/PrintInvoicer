@@ -7,6 +7,7 @@ using PrintInvoicer.Core.Pricing;
 
 namespace PrintInvoicer.App.ViewModels;
 
+/// <summary>One part card in the job window: its name, slicing fee checkbox, plates and line total.</summary>
 public partial class PartViewModel : ObservableObject
 {
     private readonly JobEditorViewModel _editor;
@@ -35,6 +36,7 @@ public partial class PartViewModel : ObservableObject
 
     [ObservableProperty] private string _summary = "";
 
+    // Shows the part's line total and passes each plate its share of the new quote.
     internal void Refresh(PartQuote q)
     {
         Summary = $"{q.Quantity} pcs x {Format.Rate(q.UnitPrice)} = {Format.Money(q.LineAmount)}";
@@ -43,11 +45,16 @@ public partial class PartViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Remove part link.
     private void Remove() => _editor.RemovePart(this);
 
     internal void RemovePlate(PlateViewModel plate) => _editor.RemovePlate(this, plate);
 }
 
+/// <summary>
+/// One plate inside a part card: copies, parts per plate, print time, printer, material (slots or resin), failures
+/// and its cost line. Typed values replace the slicer's and can be reset; on a plate typed in by hand they are the values.
+/// </summary>
 public partial class PlateViewModel : ObservableObject
 {
     private readonly PartViewModel _part;
@@ -64,6 +71,7 @@ public partial class PlateViewModel : ObservableObject
         foreach (var s in plate.Filaments) Slots.Add(new SlotViewModel(s, plate, editor));
     }
 
+    // Display text and pictures for the card.
     public string Title => Plate.IsManual ? "Entered by hand"
         : Plate.Technology == PrintTechnology.Resin ? Path.GetFileName(Plate.SourceFile)
         : $"{Path.GetFileName(Plate.SourceFile)}, plate {Plate.PlateIndex}";
@@ -72,9 +80,11 @@ public partial class PlateViewModel : ObservableObject
     public bool HasThumbnail => Plate.Thumbnail is { Length: > 0 };
     public string SlicedTimeText => Plate.IsManual ? "" : $"sliced {Format.Duration(Plate.SlicedSeconds)}";
 
+    // Which material controls the card shows: resin plates have one resin row, FDM plates a row per AMS slot.
     public bool IsResin => Plate.Technology == PrintTechnology.Resin;
     public bool IsFdm => !IsResin;
 
+    // The printers this plate can be moved to: those of its kind.
     public List<Printer> PrinterOptions => _editor.PrintersFor(Plate.Technology, Plate.PrinterId);
 
     public long? PrinterId
@@ -139,6 +149,7 @@ public partial class PlateViewModel : ObservableObject
     [ObservableProperty] private string? _resinCostTip;
 
     [RelayCommand]
+    // The reset link next to a typed-in resin volume.
     private void ResetMl()
     {
         Resin.OverrideMl = null;
@@ -241,6 +252,7 @@ public partial class PlateViewModel : ObservableObject
 
     [ObservableProperty] private string _costText = "";
 
+    // Shows the plate's cost line, and its slots' or resin's costs, from a new quote.
     internal void Refresh(PlateQuote q)
     {
         string amount = q.Resin is ResinQuote r ? $"{r.Ml:0.##} mL" : $"{q.Slots.Sum(s => s.Grams):0.##} g";
@@ -260,6 +272,7 @@ public partial class PlateViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The reset link next to a typed-in print time.
     private void ResetTime()
     {
         Plate.OverrideSeconds = null;
@@ -269,9 +282,11 @@ public partial class PlateViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The Remove plate link.
     private void Remove() => _part.RemovePlate(this);
 }
 
+/// <summary>One AMS slot row: the filament used, grams, customer supplied, and its cost.</summary>
 public partial class SlotViewModel : ObservableObject
 {
     private readonly JobEditorViewModel _editor;
@@ -338,6 +353,7 @@ public partial class SlotViewModel : ObservableObject
     [ObservableProperty] private string _costText = "";
     [ObservableProperty] private string? _costTip;
 
+    // Shows this slot's material cost from a new quote.
     internal void Refresh(SlotQuote q, Printer printer)
     {
         CostText = Slot.CustomerSupplied ? "$0"
@@ -348,6 +364,7 @@ public partial class SlotViewModel : ObservableObject
     }
 
     [RelayCommand]
+    // The reset link next to typed-in grams.
     private void ResetGrams()
     {
         Slot.OverrideGrams = null;

@@ -19,11 +19,13 @@ public static class ReleaseVersion
     /// <summary>Major.minor.patch only, so 3.2.0 (a tag) and 3.2.0.0 (an assembly) compare as equal.</summary>
     public static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 
+    /// <summary>True when <paramref name="latest"/> is a later version than <paramref name="current"/>.</summary>
     public static bool IsNewer(Version latest, Version current) => Normalize(latest) > Normalize(current);
 
     /// <summary>True when the last check was a day or more ago, never happened, or is in the future (a clock change).</summary>
     public static bool IsDue(DateTime? lastCheckUtc, DateTime nowUtc) =>
         lastCheckUtc is not DateTime last || last > nowUtc || nowUtc - last >= CheckInterval;
 
+    /// <summary>A version as shown to users, e.g. "3.6.0".</summary>
     public static string Display(Version v) => Normalize(v).ToString(3);
 }

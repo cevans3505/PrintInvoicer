@@ -15,6 +15,7 @@ public static partial class DatabaseBackup
     public const int KeepDaily = 14;
     private const string Prefix = "printinvoicer-";
 
+    /// <summary>The Backups folder next to the database, used when no backup folder is set in Settings.</summary>
     public static string DefaultFolder(string dbPath) => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(dbPath))!, "Backups");
 
     /// <summary>Makes today's backup unless one exists, then prunes old daily ones. Returns the new file, or null.</summary>
@@ -48,6 +49,7 @@ public static partial class DatabaseBackup
             .Where(f => DailyName().IsMatch(f.Name))
             .OrderByDescending(f => f.Name, StringComparer.Ordinal)   // the date in the name, not the file time
             .Skip(keep);
+        // AUDIT: file delete. Removes the oldest daily backups (printinvoicer-YYYY-MM-DD.db) in the backup folder only.
         foreach (var f in daily) f.Delete();
     }
 
@@ -63,6 +65,7 @@ public static partial class DatabaseBackup
         if (!IsIntact(backupPath))
             throw new InvalidDataException($"{Path.GetFileName(backupPath)} is damaged, so it was not restored. Try an older backup.");
 
+        // AUDIT: file write. A restore first backs up the current data, then copies the chosen backup over the database.
         string safety = Manual(dbPath, folder, now, "before-restore");
         SqliteConnection.ClearAllPools();
         using (var src = Open(backupPath, readOnly: true))
@@ -72,6 +75,7 @@ public static partial class DatabaseBackup
         return safety;
     }
 
+    /// <summary>True when the file is a SQLite database with PrintInvoicer's main tables; checked before a restore.</summary>
     public static bool LooksLikePrintInvoicer(string path)
     {
         try
@@ -87,6 +91,7 @@ public static partial class DatabaseBackup
         }
     }
 
+    // SQLite's own integrity check on a backup before restoring it, so a damaged copy never replaces good data.
     private static bool IsIntact(string path)
     {
         try
@@ -102,6 +107,8 @@ public static partial class DatabaseBackup
         }
     }
 
+    // Copies the database with SQLite's backup API (consistent even while the app is using it) to a temporary name,
+    // then renames it into place, so an interrupted copy never leaves a half-written backup.
     private static void Copy(string dbPath, string target)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
@@ -110,12 +117,14 @@ public static partial class DatabaseBackup
         using (var src = Open(dbPath, readOnly: true))
         using (var dst = Open(temp, readOnly: false))
             src.BackupDatabase(dst);
+        // AUDIT: file write. Puts a finished backup in place in the backup folder.
         File.Move(temp, target, overwrite: true);
     }
 
     // Unpooled, so the backup files are released as soon as the copy is done and can be moved or deleted.
     private static SqliteConnection Open(string path, bool readOnly)
     {
+        // AUDIT: file read/write. Opens the database or a backup file for copying.
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = path,
@@ -127,5 +136,6 @@ public static partial class DatabaseBackup
     }
 
     [GeneratedRegex(@"^printinvoicer-\d{4}-\d{2}-\d{2}\.db$")]
+    // Daily backups are named printinvoicer-YYYY-MM-DD.db; only these are pruned.
     private static partial Regex DailyName();
 }

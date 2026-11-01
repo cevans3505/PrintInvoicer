@@ -8,6 +8,10 @@ public static class SliceFileReader
         "Sliced files (*.gcode.3mf;*.gcode;*.goo)|*.gcode.3mf;*.gcode;*.goo|" +
         "Bambu Studio (*.gcode.3mf;*.gcode)|*.gcode.3mf;*.gcode|ELEGOO resin (*.goo)|*.goo|All files (*.*)|*.*";
 
+    /// <summary>
+    /// Reads a sliced file with the reader for its extension: .goo for ELEGOO resin, .3mf and .gcode for Bambu Studio.
+    /// Any other extension is refused with a message pointing to Add plate by hand.
+    /// </summary>
     public static SlicedFile Read(string path)
     {
         if (GooFileReader.CanRead(path)) return GooFileReader.Read(path);

@@ -19,9 +19,12 @@ namespace PrintInvoicer.Core.Slicing;
 /// </remarks>
 public static partial class BambuFileReader
 {
+    // The two files inside a .gcode.3mf (which is a zip archive) that this reader uses.
     private const string SliceInfoEntry = "Metadata/slice_info.config", SettingsEntry = "Metadata/project_settings.config";
+    // Deepest XML nesting accepted; Bambu's slice_info.config is three levels deep.
     private const int MaxXmlDepth = 64;
 
+    /// <summary>Reads a Bambu Studio file: plain .gcode by its header, anything else as a .gcode.3mf archive.</summary>
     public static SlicedFile Read(string path)
     {
         if (path.EndsWith(".gcode", StringComparison.OrdinalIgnoreCase))
@@ -29,12 +32,18 @@ public static partial class BambuFileReader
         return ReadThreeMf(path);
     }
 
+    /// <summary>
+    /// Reads a sliced .gcode.3mf. Opens the file read-only and only unpacks the slicing summary, the project settings and
+    /// the plate pictures; the G-code itself is never read, and nothing in the file is executed.
+    /// </summary>
     public static SlicedFile ReadThreeMf(string path)
     {
+        // AUDIT: file read. Opens the .gcode.3mf the user chose, read-only.
         // Opening the file is kept apart so a missing or locked file still reports as the IOException it is.
         using var stream = File.OpenRead(path);
         using var zip = OpenZip(stream);
 
+        // The slicing summary: one <plate> element per sliced plate, with print time, objects and filament per slot.
         var sliceInfoBytes = ReadEntry(zip, SliceInfoEntry, SliceLimits.MaxMetadataBytes);
         var sliceInfo = sliceInfoBytes == null ? null : LoadXml(sliceInfoBytes);
         var plateElements = sliceInfo?.Root?.Elements("plate").ToList() ?? new();
@@ -46,12 +55,14 @@ public static partial class BambuFileReader
         if (plateElements.Count > SliceLimits.MaxPlateIndex)
             throw Damaged($"it lists {plateElements.Count:N0} plates");
 
+        // Project settings supply hints for matching filaments (vendor and preset name) and the printer model.
         var settings = ReadProjectSettings(zip);
         var vendors = settings.GetValueOrDefault("filament_vendor") ?? new();
         var profiles = settings.GetValueOrDefault("filament_settings_id") ?? new();
         string? printer = settings.GetValueOrDefault("printer_model")?.FirstOrDefault();
 
         var plates = new List<SlicedPlate>();
+        // One SlicedPlate per <plate>. Every number is parsed and range-checked; anything unreadable rejects the file.
         foreach (var plate in plateElements)
         {
             string? indexText = Meta(plate, "index");
@@ -64,12 +75,14 @@ public static partial class BambuFileReader
                 ?? throw Damaged($"plate {index} has the print time {SliceLimits.Quote(predictionText)}");
             int seconds = (int)Math.Round(prediction);
 
+            // Objects on the plate (skipped ones excluded); their names become the part names.
             var objects = plate.Elements("object")
                 .Where(o => !string.Equals((string?)o.Attribute("skipped"), "true", StringComparison.OrdinalIgnoreCase))
                 .Select(o => (string?)o.Attribute("name") ?? "")
                 .ToList();
             if (objects.Count > SliceLimits.MaxObjects) throw Damaged($"plate {index} lists {objects.Count:N0} objects");
 
+            // Filament used per AMS slot. Slots with 0 g are left out, as they were not used on this plate.
             var filaments = plate.Elements("filament")
                 .Select(f =>
                 {
@@ -101,6 +114,7 @@ public static partial class BambuFileReader
     /// <summary>The full-size plate render from a sliced .gcode.3mf, or null if the file or image is gone or unusable.</summary>
     public static byte[]? ReadPlateImage(string path, int plateIndex)
     {
+        // AUDIT: file read. Re-reads the plate picture from the job's original sliced file, read-only, if it still exists.
         if (!path.EndsWith(".3mf", StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return null;
         try
         {
@@ -114,12 +128,17 @@ public static partial class BambuFileReader
         }
     }
 
+    /// <summary>
+    /// Reads a plain Bambu Studio .gcode export from its comment header: print time, filament weights per slot, and the
+    /// filament settings. Only the first part of the file is read (see <see cref="HeaderLines"/>).
+    /// </summary>
     public static SlicedFile ReadGcode(string path)
     {
         // Bambu writes the header and the full config block at the top of the file, so we can stop early.
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string? timeText = null, weights = null, labels = null;
 
+        // Collect the statistics lines and the "; key = value" settings lines until the config block ends.
         foreach (var line in HeaderLines(path))
         {
             if (line.StartsWith("; CONFIG_BLOCK_END", StringComparison.Ordinal)) break;
@@ -137,6 +156,7 @@ public static partial class BambuFileReader
         if (weights == null || timeText == null)
             throw new InvalidDataException("Could not find Bambu Studio print statistics in this G-code header.");
 
+        // Print time, e.g. "5h 55m 54s"; it must parse and be within the limits.
         var (seconds, parts) = SumDuration(timeText);
         if (parts == 0 || seconds > SliceLimits.MaxSeconds)
             throw DamagedGcode($"the print time {SliceLimits.Quote(timeText.Trim())}");
@@ -148,6 +168,7 @@ public static partial class BambuFileReader
             .Select(s => s.Trim())
             .Select(s => s.Length == 0 ? 0m : ParseDecimal(s, SliceLimits.MaxGrams) ?? throw DamagedGcode($"the filament weight {SliceLimits.Quote(s)}"))
             .ToList();
+        // Per-slot filament details from the settings, listed in slot order and separated by semicolons.
         var types = SplitList(values.GetValueOrDefault("filament_type"));
         var colors = SplitList(values.GetValueOrDefault("filament_colour"));
         var vendors = SplitList(values.GetValueOrDefault("filament_vendor"));
@@ -159,6 +180,7 @@ public static partial class BambuFileReader
             .Where(f => f.Grams > 0)
             .ToList();
 
+        // The number of model labels is the number of objects; plain G-code has no object names, so the file name is used.
         int count = labels?.Split(',', StringSplitOptions.RemoveEmptyEntries).Length ?? 1;
         if (count > SliceLimits.MaxObjects) throw DamagedGcode($"{count:N0} objects");
         string name = Path.GetFileNameWithoutExtension(path);
@@ -206,6 +228,7 @@ public static partial class BambuFileReader
         return (at >= 0 ? profile[..at] : profile).Trim();
     }
 
+    /// <summary>Opens the file as a zip archive for reading, turning any damage into a clear message.</summary>
     private static ZipArchive OpenZip(Stream stream)
     {
         ZipArchive? zip = null;
@@ -271,6 +294,10 @@ public static partial class BambuFileReader
         }
     }
 
+    /// <summary>
+    /// Parses the slicing summary XML safely: no DTDs and no external references (so a file cannot make the app fetch
+    /// anything), a size cap, and a nesting-depth check before the document is built.
+    /// </summary>
     private static XDocument LoadXml(byte[] bytes)
     {
         var settings = new XmlReaderSettings
@@ -300,6 +327,10 @@ public static partial class BambuFileReader
         }
     }
 
+    /// <summary>
+    /// The project settings JSON as key to list of values. Optional: if it is missing or damaged, an empty set is
+    /// returned and the file still reads, just without vendor and preset hints.
+    /// </summary>
     private static Dictionary<string, List<string>> ReadProjectSettings(ZipArchive zip)
     {
         var result = new Dictionary<string, List<string>>();
@@ -334,6 +365,7 @@ public static partial class BambuFileReader
     /// </summary>
     private static IEnumerable<string> HeaderLines(string path)
     {
+        // AUDIT: file read. Reads the start of the .gcode file the user chose, read-only.
         using var reader = new StreamReader(path, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
         var buffer = new char[64 * 1024];
         var line = new StringBuilder();
@@ -371,15 +403,18 @@ public static partial class BambuFileReader
             sb.Length > 0 && sb[^1] == '\r' ? sb.ToString(0, sb.Length - 1) : sb.ToString();
     }
 
+    // The value of <metadata key="..." value="..."/> inside a <plate>, or null.
     private static string? Meta(XElement plate, string key) =>
         plate.Elements("metadata").FirstOrDefault(m => (string?)m.Attribute("key") == key)?.Attribute("value")?.Value;
 
+    // Splits a semicolon-separated settings value into its per-slot items.
     private static List<string> SplitList(string? value)
     {
         if (string.IsNullOrEmpty(value)) return new();
         return value.Split(';').Select(s => s.Trim().Trim('"')).ToList();
     }
 
+    // Item i of a list, or "" when the list is shorter.
     private static string ValueAt(List<string> list, int i) => i >= 0 && i < list.Count ? list[i] : "";
 
     /// <summary>A whole number from min to max, or null if the text is anything else.</summary>
@@ -390,12 +425,14 @@ public static partial class BambuFileReader
     private static decimal? ParseDecimal(string? s, decimal max) =>
         decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && d >= 0 && d <= max ? d : null;
 
+    // The error shown to the user for a damaged .gcode.3mf or .gcode file.
     private static InvalidDataException Damaged(string what, Exception? inner = null) =>
         new($"This .gcode.3mf file looks damaged: {what}. Export the plate sliced file from Bambu Studio again.", inner);
 
     private static InvalidDataException DamagedGcode(string what) =>
         new($"This G-code file looks damaged: its header gives {what}. Export the G-code from Bambu Studio again.");
 
+    // Marks the "too large" error so it is not re-wrapped as a generic unpacking error.
     private const string TooLargeKey = "PrintInvoicer.TooLarge";
 
     private static InvalidDataException TooLarge(string name)
@@ -407,6 +444,7 @@ public static partial class BambuFileReader
 
     private static bool IsTooLarge(Exception ex) => ex.Data.Contains(TooLargeKey);
 
+    /// <summary>Colors as uppercase #RRGGBB, so slicer colors and your filament colors compare equal.</summary>
     internal static string NormalizeHex(string? hex)
     {
         if (string.IsNullOrWhiteSpace(hex)) return "";
@@ -417,8 +455,10 @@ public static partial class BambuFileReader
     }
 
     [GeneratedRegex(@"total estimated time:\s*([0-9dhms ]+)")]
+    // "; total estimated time: 5h 55m 54s" in a G-code header.
     private static partial Regex TimeLine();
 
     [GeneratedRegex(@"(\d+)\s*([dhms])")]
+    // One number-and-unit part of a duration, e.g. "55m".
     private static partial Regex DurationPart();
 }

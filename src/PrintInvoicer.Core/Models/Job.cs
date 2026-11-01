@@ -1,17 +1,24 @@
 namespace PrintInvoicer.Core.Models;
 
+/// <summary>
+/// One print job and its invoice: who it is for, its parts and plates, fees, discount, and its draft / finalized,
+/// printed and paid state. Saved by <see cref="Data.Database.SaveJob"/>; priced by <see cref="Pricing.PricingCalculator"/>.
+/// </summary>
 public class Job
 {
     public long Id { get; set; }
     public string Title { get; set; } = "";
     public string Customer { get; set; } = "";
+    /// <summary>Reserved when the job is created (can be changed by hand); null until one is given.</summary>
     public string? InvoiceNumber { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.Today;
+    /// <summary>Set when the invoice is finalized; empty for drafts.</summary>
     public DateTime? InvoiceDate { get; set; }
 
     /// <summary>Hours entered by hand; 0 means no modeling charge.</summary>
     public decimal ModelingHours { get; set; }
 
+    /// <summary>Charge the flat post-processing fee from Settings.</summary>
     public bool PostProcessing { get; set; }
 
     /// <summary>Percent off the whole invoice, 0 to 100. New jobs start with the default from Settings.</summary>
@@ -32,15 +39,19 @@ public class Job
     public string? PriceSnapshot { get; set; }
     public decimal? FinalizedTotal { get; set; }
 
+    /// <summary>The customer has paid, and when (tracked by hand).</summary>
     public bool Paid { get; set; }
     public DateTime? PaidDate { get; set; }
+    /// <summary>Printed on the invoice in the Notes box.</summary>
     public string Notes { get; set; } = "";
 
+    /// <summary>The unique parts on this invoice, each with the plates it was printed on.</summary>
     public List<JobPart> Parts { get; set; } = new();
 
     /// <summary>Extra costs switched off for this job only.</summary>
     public HashSet<long> ExcludedExtraCosts { get; set; } = new();
 
+    /// <summary>Every plate of every part.</summary>
     public IEnumerable<JobPlate> AllPlates => Parts.SelectMany(p => p.Plates);
 
     /// <summary>
@@ -79,9 +90,11 @@ public class JobPart
 {
     public long Id { get; set; }
     public string Name { get; set; } = "";
+    /// <summary>Charge the per-part slicing fee for this part.</summary>
     public bool ChargeSlicing { get; set; } = true;
     public List<JobPlate> Plates { get; set; } = new();
 
+    /// <summary>Pieces billed for this part: for each plate, prints x parts per plate.</summary>
     public int Quantity => Plates.Sum(p => p.Copies * p.PartsPerPlate);
 }
 
@@ -92,18 +105,23 @@ public class JobPlate
 
     /// <summary>The sliced file this plate came from; empty for a plate entered by hand.</summary>
     public string SourceFile { get; set; } = "";
+    /// <summary>Which plate of the sliced file this is (Bambu files can hold several).</summary>
     public int PlateIndex { get; set; } = 1;
+    /// <summary>How many times the plate is printed, and how many parts each print makes.</summary>
     public int Copies { get; set; } = 1;
     public int PartsPerPlate { get; set; } = 1;
 
+    /// <summary>FDM or resin, and the printer whose rates price this plate.</summary>
     public PrintTechnology Technology { get; set; }
     public long? PrinterId { get; set; }
 
     /// <summary>Resin plates only: the vat's resin. FDM plates use <see cref="Filaments"/> instead.</summary>
     public PlateResin? Resin { get; set; }
+    /// <summary>Resin plates: layers and layer height from the file, shown for reference only.</summary>
     public int LayerCount { get; set; }
     public decimal LayerHeightMm { get; set; }
 
+    /// <summary>True for a plate typed in by hand rather than read from a sliced file.</summary>
     public bool IsManual => string.IsNullOrEmpty(SourceFile);
 
     /// <summary>
@@ -112,20 +130,25 @@ public class JobPlate
     /// </summary>
     public bool PartsCountConfirmed { get; set; } = true;
 
+    /// <summary>Print time from the slicer, and a time typed in to replace it (null when not replaced).</summary>
     public int SlicedSeconds { get; set; }
     public int? OverrideSeconds { get; set; }
+    /// <summary>The plate's preview picture as PNG bytes, shown in the job window and on invoices.</summary>
     public byte[]? Thumbnail { get; set; }
 
     /// <summary>Some objects on this plate failed to print. Recorded for reference; billing is unchanged.</summary>
     public bool HasFailures { get; set; }
+    /// <summary>How many objects failed, and what happened; shown on both PDFs.</summary>
     public int FailedCount { get; set; }
     public string FailureNote { get; set; } = "";
 
+    /// <summary>FDM plates: the filament used per AMS slot. Empty on resin plates.</summary>
     public List<PlateFilament> Filaments { get; set; } = new();
 
     /// <summary>Objects across every print of this plate.</summary>
     public int TotalObjects => Copies * PartsPerPlate;
 
+    /// <summary>The print time used for pricing: the typed-in time if there is one, otherwise the slicer's.</summary>
     public int EffectiveSeconds => OverrideSeconds ?? SlicedSeconds;
     public decimal EffectiveHours => EffectiveSeconds / 3600m;
 }
@@ -134,18 +157,22 @@ public class JobPlate
 public class PlateFilament
 {
     public long Id { get; set; }
+    /// <summary>AMS slot number, and the filament details the slicer recorded for it (used to guess the filament).</summary>
     public int SlotId { get; set; }
     public string SlicerType { get; set; } = "";
     public string SlicerColorHex { get; set; } = "";
     public string SlicerVendor { get; set; } = "";
     public string SlicerProfile { get; set; } = "";
 
+    /// <summary>Grams per print from the slicer, and a measured weight typed in to replace it (null when not replaced).</summary>
     public decimal SlicedGrams { get; set; }
     public decimal? OverrideGrams { get; set; }
 
+    /// <summary>Your filament used for this slot, and whether the customer supplied it (then it is not billed).</summary>
     public long? FilamentId { get; set; }
     public bool CustomerSupplied { get; set; }
 
+    /// <summary>The grams used for pricing: the typed-in weight if there is one, otherwise the slicer's.</summary>
     public decimal EffectiveGrams => OverrideGrams ?? SlicedGrams;
 }
 
@@ -155,11 +182,14 @@ public class PlateResin
     /// <summary>The resin profile named in the sliced file, used to pick a resin.</summary>
     public string SlicerProfile { get; set; } = "";
 
+    /// <summary>mL per print from the slicer, and a measured volume typed in to replace it (null when not replaced).</summary>
     public decimal SlicedMl { get; set; }
     public decimal? OverrideMl { get; set; }
 
+    /// <summary>Your resin used for this plate, and whether the customer supplied it (then it is not billed).</summary>
     public long? ResinId { get; set; }
     public bool CustomerSupplied { get; set; }
 
+    /// <summary>The mL used for pricing: the typed-in volume if there is one, otherwise the slicer's.</summary>
     public decimal EffectiveMl => OverrideMl ?? SlicedMl;
 }

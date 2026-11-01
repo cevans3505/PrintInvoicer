@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace PrintInvoicer.Core.Models;
 
+// The choices in the job list's filter dropdowns.
 public enum PaidFilter { Any, Unpaid, Paid }
 public enum StageFilter { Any, Draft, Finalized }
 public enum PrintedFilter { Any, NotPrinted, Printed }
@@ -24,6 +25,7 @@ public sealed class JobFilter
     public string Keywords { get; set; } = "";
     public SearchColumn Column { get; set; }
 
+    /// <summary>True when no filter is set, so every job shows.</summary>
     public bool IsEmpty =>
         Paid == PaidFilter.Any && Stage == StageFilter.Any && Printed == PrintedFilter.Any &&
         From is null && To is null && string.IsNullOrWhiteSpace(Keywords);
@@ -34,6 +36,7 @@ public sealed class JobFilter
     /// <param name="text">The searchable text of each column for this job, as shown in the list.</param>
     public bool Matches(Job job, IReadOnlyDictionary<SearchColumn, string> text)
     {
+        // Paid, draft or finalized, and printed filters.
         if (Paid == PaidFilter.Unpaid && job.Paid) return false;
         if (Paid == PaidFilter.Paid && !job.Paid) return false;
         if (Stage == StageFilter.Draft && job.Finalized) return false;
@@ -41,10 +44,12 @@ public sealed class JobFilter
         if (Printed == PrintedFilter.NotPrinted && job.Printed) return false;
         if (Printed == PrintedFilter.Printed && !job.Printed) return false;
 
+        // Date range, inclusive at both ends.
         var date = ListDate(job);
         if (From is DateTime from && date < from.Date) return false;
         if (To is DateTime to && date > to.Date) return false;
 
+        // Search words: every word must appear, in the chosen column or in any column.
         var words = ParseKeywords(Keywords);
         if (words.Count == 0) return true;
         var haystack = Column == SearchColumn.Any
@@ -68,6 +73,7 @@ public sealed class JobFilter
         };
     }
 
+    /// <summary>Splits search text into words, keeping "quoted phrases" together as one.</summary>
     public static IReadOnlyList<string> ParseKeywords(string? keywords) =>
         string.IsNullOrWhiteSpace(keywords)
             ? Array.Empty<string>()

@@ -3,6 +3,10 @@ using PrintInvoicer.Core.Pricing;
 
 namespace PrintInvoicer.Core.Slicing;
 
+/// <summary>
+/// Turns what a file reader found into parts and plates on a job, guesses the material for each slot or vat, and
+/// creates plates typed in by hand. Works only on the job in memory; saving is done by the database.
+/// </summary>
 public static class JobBuilder
 {
     /// <summary>
@@ -107,6 +111,7 @@ public static class JobBuilder
         return plate;
     }
 
+    // The file name without its slicer extension, used as a part name when the file names no objects.
     private static string StripSuffix(string fileName)
     {
         foreach (var ext in new[] { ".gcode.3mf", ".3mf", ".gcode", ".goo" })

@@ -11,11 +11,14 @@ namespace PrintInvoicer.Core.Pricing;
 public static class PriceSnapshot
 {
     /// <param name="RulesVersion">Pricing rules the invoice was priced under; snapshots from before it was recorded are version 1.</param>
+    // What is saved: the shop settings, and only the materials, printers and extra costs this job can use.
     private sealed record Contents(AppSettings Settings, List<Filament> Filaments, List<Resin> Resins, List<Printer> Printers,
         List<ExtraCost> ExtraCosts, int RulesVersion = 1);
 
+    // Enums are written by name, so a saved snapshot stays readable and survives enum changes.
     private static readonly JsonSerializerOptions Json = new() { Converters = { new JsonStringEnumConverter() } };
 
+    /// <summary>Serializes the prices this job is priced from to JSON, to be stored with the finalized job.</summary>
     public static string Capture(Job job, PriceBook book)
     {
         var plates = job.AllPlates.ToList();

@@ -19,6 +19,7 @@ public class AppSettings
     public string DiscountLabel { get; set; } = "Discount";
 
     // Invoice
+    /// <summary>Your name or business name and contact line, printed at the top of every invoice.</summary>
     public string BusinessName { get; set; } = "";
     public string ContactLine { get; set; } = "";
     public string DefaultCustomer { get; set; } = "";
@@ -31,6 +32,7 @@ public class AppSettings
     /// that year, so a new year starts again at 001. 0 means not known.
     /// </summary>
     public int NextInvoiceYear { get; set; }
+    /// <summary>Where finalized and internal PDFs are saved; blank means Documents\PrintInvoicer\Invoices.</summary>
     public string InvoiceFolder { get; set; } = "";
 
     /// <summary>Where daily backups go; blank means a Backups folder next to the database.</summary>
@@ -43,5 +45,6 @@ public class AppSettings
     /// <summary>Builds an invoice number like 2026-001 from the prefix (which may contain {yyyy}) and a sequence.</summary>
     public string FormatInvoiceNumber(int sequence, DateTime date) => InvoicePrefixFor(date) + sequence.ToString("000");
 
+    /// <summary>The prefix with {yyyy} replaced by the year of <paramref name="date"/>.</summary>
     public string InvoicePrefixFor(DateTime date) => InvoicePrefix.Replace("{yyyy}", date.Year.ToString("0000"));
 }
