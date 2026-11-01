@@ -136,6 +136,39 @@ public class PricingTests
     }
 
     [Fact]
+    public void Fees_with_fractions_of_a_cent_bill_what_the_invoice_shows()
+    {
+        // The invoice shows "2 part(s) x $7.13" and "Post-processing $20.01", so those are the amounts billed.
+        var s = new AppSettings { SlicingFeePerPart = 7.125m, PostProcessingFee = 20.005m };
+        var job = new Job
+        {
+            PostProcessing = true,
+            Parts = { new JobPart { Name = "a", Plates = { new JobPlate() } }, new JobPart { Name = "b", Plates = { new JobPlate() } } },
+        };
+
+        var quote = PricingCalculator.Calculate(job, new PriceBook(s, printers: [new Printer { Id = 1 }]));
+
+        Assert.Equal(2 * 7.13m, quote.SlicingAmount);
+        Assert.Equal(20.01m, quote.PostProcessingAmount);
+        Assert.Equal(34.27m, quote.Total);
+    }
+
+    [Fact]
+    public void Half_cent_unit_price_rounds_up_when_hours_are_not_exact_decimals()
+    {
+        // A 20-minute print at $2.70/h is $0.90 of machine time; 75 W at $0.20/kWh adds $0.005. One piece costs
+        // $0.905, which rounds half away from zero to $0.91. 1200 s / 3600 is 0.333..., and the shortfall in the last
+        // of decimal's 28 digits used to make it $0.9049999... and so $0.90.
+        var printer = new Printer { Id = 1, Technology = PrintTechnology.Fdm, MachineRatePerHour = 2.70m, Watts = 75m };
+        var job = new Job { Parts = { new JobPart { Name = "Clip", ChargeSlicing = false, Plates = { new JobPlate { PrinterId = 1, SlicedSeconds = 1200 } } } } };
+
+        var quote = PricingCalculator.Calculate(job, new PriceBook(new AppSettings { ElectricityPerKwh = 0.20m }, printers: [printer]));
+
+        Assert.Equal(0.91m, quote.Parts[0].UnitPrice);
+        Assert.Equal(0.91m, quote.Total);
+    }
+
+    [Fact]
     public void Unassigned_slot_warns()
     {
         var job = JobFrom("Wire_Brush_Insert.gcode.3mf", new List<Filament>(), copies: 1);

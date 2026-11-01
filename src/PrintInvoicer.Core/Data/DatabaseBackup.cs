@@ -59,6 +59,9 @@ public static partial class DatabaseBackup
     {
         if (!LooksLikePrintInvoicer(backupPath))
             throw new InvalidDataException($"{Path.GetFileName(backupPath)} is not a PrintInvoicer database.");
+        // The copy is page for page, so a damaged backup would replace good data with a database that will not open.
+        if (!IsIntact(backupPath))
+            throw new InvalidDataException($"{Path.GetFileName(backupPath)} is damaged, so it was not restored. Try an older backup.");
 
         string safety = Manual(dbPath, folder, now, "before-restore");
         SqliteConnection.ClearAllPools();
@@ -77,6 +80,21 @@ public static partial class DatabaseBackup
             using var cmd = c.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('jobs', 'settings', 'plates')";
             return Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) == 3;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsIntact(string path)
+    {
+        try
+        {
+            using var c = Open(path, readOnly: true);
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "PRAGMA integrity_check(1)";
+            return cmd.ExecuteScalar() as string == "ok";
         }
         catch (SqliteException)
         {

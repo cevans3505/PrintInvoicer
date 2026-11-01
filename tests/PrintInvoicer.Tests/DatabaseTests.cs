@@ -1,5 +1,6 @@
 using PrintInvoicer.Core.Data;
 using PrintInvoicer.Core.Models;
+using PrintInvoicer.Core.Pricing;
 using PrintInvoicer.Core.Slicing;
 
 namespace PrintInvoicer.Tests;
@@ -209,6 +210,24 @@ public sealed class DatabaseTests : IDisposable
         Assert.Equal(1, plate.FailedCount);
         Assert.Equal("Broke free from the print bed", plate.FailureNote);
         Assert.Equal(10, plate.TotalObjects);
+    }
+
+    [Fact]
+    public void Deleting_a_filament_keeps_remembered_resin_choices()
+    {
+        // Filaments and resins are numbered separately, so a new database has filament 1 and resin 1.
+        var db = new Database(_path);
+        var resin = db.GetResins().Single();
+        var filament = db.GetFilaments().Single(f => f.Id == resin.Id);
+        string resinKey = ResinMatcher.MappingKey("Creality Blue Fast resin");
+        db.SaveMapping(resinKey, resin.Id);
+        db.SaveMapping("BAMBU|PLA|#FFFFFF", filament.Id);
+
+        Assert.True(db.DeleteFilament(filament.Id));
+
+        var mappings = db.GetMappings();
+        Assert.Equal(resin.Id, mappings[resinKey]);
+        Assert.False(mappings.ContainsKey("BAMBU|PLA|#FFFFFF"));
     }
 
     [Fact]

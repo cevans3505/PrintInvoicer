@@ -156,7 +156,9 @@ public static class PricingCalculator
             }
 
             int qty = part.Quantity;
-            decimal printCost = plates.Sum(p => p.Total);
+            // Dividing by 3600 s, or by a 750 g spool, leaves a shortfall in decimal's last digit that would turn an
+            // exact half cent into $x.xx4999... and round it down; 15 places is far below a cent and far above that shortfall.
+            decimal printCost = Math.Round(plates.Sum(p => p.Total), 15, MidpointRounding.AwayFromZero);
             decimal unit, line;
             if (qty > 0)
             {
@@ -179,9 +181,10 @@ public static class PricingCalculator
             .ToList();
 
         int slicingCount = job.Parts.Count(p => p.ChargeSlicing);
-        decimal slicing = slicingCount * s.SlicingFeePerPart;
+        // The fee is shown to the cent, so that is what is charged per part, as with a part's unit price.
+        decimal slicing = slicingCount * Money(s.SlicingFeePerPart);
         decimal modeling = Money(job.ModelingHours * s.ModelingRatePerHour);
-        decimal post = job.PostProcessing ? s.PostProcessingFee : 0m;
+        decimal post = job.PostProcessing ? Money(s.PostProcessingFee) : 0m;
 
         var quote = new JobQuote(parts, slicingCount, slicing, job.ModelingHours, modeling, post, jobExtras, warnings);
         if (job.Finalized && job.FinalizedTotal is decimal sent && sent != quote.Total)

@@ -27,12 +27,16 @@ public class Database
 
     /// <summary>
     /// Invoices finalized before prices were frozen get today's prices as their snapshot, which are the prices they
-    /// were last shown with, so from now on they stay as they are.
+    /// were last shown with, so from now on they stay as they are. Drafts have no frozen prices: a snapshot left on one
+    /// (reverted to draft by a version that did not know about snapshots) is dropped, so it is priced at today's rates.
     /// </summary>
     private void FreezeFinalizedJobs()
     {
         using (var c = Open())
+        {
+            Exec(c, "UPDATE jobs SET price_snapshot = NULL, finalized_total = NULL WHERE finalized = 0 AND (price_snapshot IS NOT NULL OR finalized_total IS NOT NULL)");
             if (Scalar<long>(c, "SELECT COUNT(*) FROM jobs WHERE finalized = 1 AND price_snapshot IS NULL") == 0) return;
+        }
 
         var book = LoadPriceBook();
         foreach (var job in GetJobs().Where(j => j.Finalized && j.PriceSnapshot is null))
@@ -340,7 +344,8 @@ public class Database
             Exec(c, "UPDATE filaments SET active = 0 WHERE id = $id", ("$id", id));
             return false;
         }
-        Exec(c, "DELETE FROM filament_mappings WHERE filament_id = $id", ("$id", id));
+        // Resin choices share the table (keyed RESIN|...) and resin ids overlap filament ids, so leave those alone.
+        Exec(c, "DELETE FROM filament_mappings WHERE filament_id = $id AND key NOT LIKE 'RESIN|%'", ("$id", id));
         Exec(c, "DELETE FROM filaments WHERE id = $id", ("$id", id));
         return true;
     }
