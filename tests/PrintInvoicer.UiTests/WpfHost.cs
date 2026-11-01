@@ -99,21 +99,32 @@ internal static class WpfHost
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
     }
 
+    /// <summary>
+    /// The window's whole client area (its root visual, so element margins are included) as PNG bytes, at scale x 96 DPI.
+    /// No title bar or frame is drawn.
+    /// </summary>
+    public static byte[] RenderPng(Window window, double scale = 1)
+    {
+        Settle(window);
+        var root = (FrameworkElement)VisualTreeHelper.GetChild(window, 0);
+        int width = Math.Max(1, (int)(root.ActualWidth * scale));
+        int height = Math.Max(1, (int)(root.ActualHeight * scale));
+        var rtb = new RenderTargetBitmap(width, height, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+        rtb.Render(root);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(rtb));
+        using var ms = new MemoryStream();
+        enc.Save(ms);
+        return ms.ToArray();
+    }
+
     /// <summary>Saves what the window looks like to the screens folder.</summary>
     public static void Screenshot(Window window, string name)
     {
-        Settle(window);
-        var el = (FrameworkElement)window.Content;
-        var rtb = new RenderTargetBitmap(Math.Max(1, (int)el.ActualWidth), Math.Max(1, (int)el.ActualHeight), 96, 96, PixelFormats.Pbgra32);
-        var dv = new DrawingVisual();
-        using (var dc = dv.RenderOpen()) dc.DrawRectangle(window.Background, null, new Rect(0, 0, el.ActualWidth, el.ActualHeight));
-        rtb.Render(dv);
-        rtb.Render(el);
-        var enc = new PngBitmapEncoder();
-        enc.Frames.Add(BitmapFrame.Create(rtb));
+        // AUDIT: file write. Creates the test output's screens folder if it does not exist.
         Directory.CreateDirectory(ScreenshotFolder);
-        using var fs = File.Create(Path.Combine(ScreenshotFolder, name + ".png"));
-        enc.Save(fs);
+        // AUDIT: file write. A screenshot for a person to look at, in the test output's screens folder.
+        File.WriteAllBytes(Path.Combine(ScreenshotFolder, name + ".png"), RenderPng(window));
     }
 
     /// <summary>All elements of a type under a root, for checking what is enabled or visible.</summary>

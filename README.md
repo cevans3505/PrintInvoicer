@@ -4,6 +4,14 @@ A Windows desktop app for invoicing 3D printing jobs on FDM and resin printers. 
 resin files, prices material, machine time, electricity and your own extra costs per plate, adds slicing, modeling and
 post-processing fees, and produces a PDF invoice plus an internal detail sheet.
 
+## What it looks like
+
+These pictures are made from sample data, so every name in them is made up.
+
+![The PrintInvoicer job list with sample jobs and their totals](docs/images/main-jobs.png)
+
+The job list. Each job stays a draft until you finalize its invoice, and you tick Paid when the customer pays.
+
 > [!IMPORTANT]
 > **Personal project, shared as-is.** I built PrintInvoicer for my own use, invoicing 3D printing work for a local
 > business. I'm sharing it publicly because I believe in open source and in sharing code for the benefit of everyone.
