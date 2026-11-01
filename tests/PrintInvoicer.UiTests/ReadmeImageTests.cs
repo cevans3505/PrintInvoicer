@@ -63,6 +63,18 @@ public sealed class ReadmeImageTests : IDisposable
         main.Width = 1100;
         main.Height = 680;
         WpfHost.Settle(main);
+
+        // The picture must show every state in a fixed order, or it is not worth committing.
+        var rows = main.ViewModel.Jobs;
+        string[] expectedTitles = ["Regulator clips", "Wire Brush Inserts", "Tube caps", "Dive light mounts"];
+        Assert.Equal(expectedTitles, rows.Select(r => r.Title));
+        string[] expectedInvoices = ["2026-002", "2026-001", "2026-003", "2026-004"];
+        Assert.Equal(expectedInvoices, rows.Select(r => r.Invoice));
+        string[] expectedDates = ["2026-10-31", "2026-10-31", "2026-10-30", "2026-10-22"];
+        Assert.Equal(expectedDates, rows.Select(r => r.Date));
+        string[] expectedStatuses = ["Draft", "Draft", "Invoiced Oct 30", "Paid Oct 27"];
+        Assert.Equal(expectedStatuses, rows.Select(r => r.Status));
+
         byte[] png = WpfHost.RenderPng(main, 2);
         main.Close();
         Assert.Empty(WpfHost.TakeBindingErrors());

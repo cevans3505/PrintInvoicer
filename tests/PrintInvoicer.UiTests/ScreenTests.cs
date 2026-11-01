@@ -54,7 +54,7 @@ public sealed class ScreenTests : IDisposable
             main.Height = names[i] == "settings" ? 1150 : 680;
             WpfHost.Screenshot(main, "main-" + names[i]);
         }
-        Assert.Equal(3, main.ViewModel.Jobs.Count);
+        Assert.Equal(4, main.ViewModel.Jobs.Count);
         main.Close();
         NoBindingErrors("The main window");
     });
@@ -69,13 +69,15 @@ public sealed class ScreenTests : IDisposable
         Assert.Equal("Total " + Format.Money(all), vm.VisibleTotal);
 
         vm.StageFilter = StageFilter.Finalized;
-        Assert.Equal("Showing 1 of 3 jobs", vm.VisibleCount);
-        var finalized = _shop.Reload(_shop.FinalizedJob);
-        Assert.Equal("Total " + Format.Money(PricingCalculator.Calculate(finalized, PriceSnapshot.For(finalized, book)).Total), vm.VisibleTotal);
+        Assert.Equal("Showing 2 of 4 jobs", vm.VisibleCount);
+        decimal sum = 0;
+        foreach (var sent in new[] { _shop.Reload(_shop.FinalizedJob), _shop.Reload(_shop.PaidJob) })
+            sum += PricingCalculator.Calculate(sent, PriceSnapshot.For(sent, book)).Total;
+        Assert.Equal("Total " + Format.Money(sum), vm.VisibleTotal);
 
         vm.ClearFiltersCommand.Execute(null);
         vm.Keywords = "clips";
-        Assert.Equal("Showing 1 of 3 jobs", vm.VisibleCount);
+        Assert.Equal("Showing 1 of 4 jobs", vm.VisibleCount);
         main.Close();
     });
 
