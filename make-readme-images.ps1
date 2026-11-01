@@ -9,7 +9,7 @@ $root = $PSScriptRoot
 # The test runs from another folder, so it needs a full path.
 $OutDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutDir)
 # The pictures ReadmeImageTests writes; this run must rewrite every one.
-$images = @('main-jobs.png', 'job-editor.png')
+$images = @('main-jobs.png', 'job-editor.png', 'invoice-page-1.png')
 $started = Get-Date
 
 $env:PRINTINVOICER_README_IMAGES = $OutDir

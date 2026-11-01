@@ -17,6 +17,10 @@ The job list. Each job stays a draft until you finalize its invoice, and you tic
 The job editor for a job built from a Bambu Studio file: the plate and its picture, the filament in each AMS slot,
 and the price breakdown with a friends and family discount and filament the customer supplied.
 
+<a href="docs/images/invoice-page-1.png"><img src="docs/images/invoice-page-1.png" alt="Page 1 of a sample invoice from Sample Printing Co. to Harbor Dive Shop" width="480"></a>
+
+Page 1 of the invoice the customer receives. Click it to open it full size.
+
 > [!IMPORTANT]
 > **Personal project, shared as-is.** I built PrintInvoicer for my own use, invoicing 3D printing work for a local
 > business. I'm sharing it publicly because I believe in open source and in sharing code for the benefit of everyone.

@@ -4,7 +4,9 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PrintInvoicer.App;
+using PrintInvoicer.App.Pdf;
 using PrintInvoicer.App.ViewModels;
+using PrintInvoicer.Core.Pricing;
 
 namespace PrintInvoicer.UiTests;
 
@@ -45,9 +47,12 @@ public sealed class ReadmeImageTests : IDisposable
         {
             var jobList = RenderJobList();
             var (editor, editorTotal) = RenderJobEditor();
+            var (invoice, invoiceTotal) = RenderInvoice();
+            Assert.Equal(editorTotal, invoiceTotal);
 
             Save("main-jobs.png", jobList);
             Save("job-editor.png", editor);
+            Save("invoice-page-1.png", invoice);
         }
         finally
         {
@@ -109,6 +114,26 @@ public sealed class ReadmeImageTests : IDisposable
         AssertPng(png, 2400, 2640, 1400, 1640);
         AssertFillsFrame(png);
         return (png, total);
+    }
+
+    /// <summary>
+    /// Page 1 of the unpaid Final invoice for the Wire Brush Inserts job at 110 DPI (935 x 1210 for letter paper), and its
+    /// total. The invoice must be one page. The job is finalized in memory only and never written back, so it stays a
+    /// draft for the editor picture and the other tests.
+    /// </summary>
+    private (byte[] Png, string Total) RenderInvoice()
+    {
+        var job = _shop.Reload(_shop.FdmJob);
+        job.FinalizeInvoice(new DateTime(2026, 10, 31), redate: false);
+        Assert.False(job.Paid);
+        var book = _shop.Db.LoadPriceBook();
+        var jobBook = PriceSnapshot.For(job, book);
+        var quote = PricingCalculator.Calculate(job, jobBook);
+        var pages = InvoicePdf.RenderPages(job, quote, jobBook, InvoiceKind.Final, 110);
+        byte[] png = Assert.Single(pages);
+        AssertPng(png, 935, 935, 1210, 1210);
+        Assert.False(_shop.Reload(_shop.FdmJob).Finalized);
+        return (png, Format.Money(quote.Total));
     }
 
     /// <summary>Fails the run, before anything is written, if a picture is not a PNG of the expected size.</summary>
