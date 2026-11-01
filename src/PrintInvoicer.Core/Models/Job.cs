@@ -14,6 +14,9 @@ public class Job
 
     public bool PostProcessing { get; set; }
 
+    /// <summary>Percent off the whole invoice, 0 to 100. New jobs start with the default from Settings.</summary>
+    public decimal DiscountPercent { get; set; }
+
     /// <summary>All plates for this job have been printed (tracked separately from invoicing and payment).</summary>
     public bool Printed { get; set; }
     public DateTime? PrintedDate { get; set; }

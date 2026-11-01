@@ -194,6 +194,28 @@ public partial class JobEditorViewModel : ObservableObject
     public bool HasJobExtras => Quote.JobExtras.Count > 0;
     public string TotalText => Format.Money(Quote.Total);
 
+    // Discount and the value of the customer's material
+    public bool HasDiscount => Quote.DiscountAmount > 0;
+    public string SubtotalText => Format.Money(Quote.Subtotal);
+    public string DiscountLabelText => $"{Settings.DiscountLabel} ({Quote.DiscountPercent:0.##}%)";
+    public string DiscountText => "-" + Format.Money(Quote.DiscountAmount);
+    public bool HasCustomerMaterial => Quote.CustomerMaterialValue > 0;
+    public string CustomerMaterialText =>
+        $"Customer's material worth {Format.Money(Quote.CustomerMaterialValue)} at your rates (not billed)" +
+        (Quote.HasUnvaluedCustomerMaterial ? "; some has no filament or resin picked, so it is not counted" : "");
+
+    /// <summary>Percent off the whole invoice, 0 to 100, kept to 2 decimals.</summary>
+    public decimal DiscountPercent
+    {
+        get => Job.DiscountPercent;
+        set
+        {
+            value = Math.Round(Math.Clamp(value, 0m, 100m), 2, MidpointRounding.AwayFromZero);
+            if (SetProperty(Job.DiscountPercent, value, Job, (j, v) => j.DiscountPercent = v)) Changed();
+            else OnPropertyChanged();
+        }
+    }
+
     internal Filament? FindFilament(long? id) => Book.Filament(id);
 
     internal void RememberFilament(PlateFilament slot)
@@ -238,7 +260,9 @@ public partial class JobEditorViewModel : ObservableObject
 
         foreach (var name in new[] { nameof(MaterialText), nameof(MachineText), nameof(ElectricityText), nameof(PlateExtrasText),
                      nameof(HasPlateExtras), nameof(PartsText), nameof(SlicingLabel), nameof(SlicingText), nameof(ModelingText),
-                     nameof(PostText), nameof(JobExtrasText), nameof(HasJobExtras), nameof(TotalText), nameof(HasParts), nameof(HasExtraCosts) })
+                     nameof(PostText), nameof(JobExtrasText), nameof(HasJobExtras), nameof(TotalText), nameof(HasParts), nameof(HasExtraCosts),
+                     nameof(HasDiscount), nameof(SubtotalText), nameof(DiscountLabelText), nameof(DiscountText),
+                     nameof(HasCustomerMaterial), nameof(CustomerMaterialText) })
             OnPropertyChanged(name);
     }
 

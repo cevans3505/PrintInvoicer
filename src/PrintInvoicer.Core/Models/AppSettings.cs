@@ -11,6 +11,13 @@ public class AppSettings
     public decimal SlicingFeePerPart { get; set; } = 10m;
     public decimal PostProcessingFee { get; set; } = 20m;
 
+    // Discount
+    /// <summary>Percent off applied to new jobs; each job can change its own.</summary>
+    public decimal DefaultDiscountPercent { get; set; }
+
+    /// <summary>What the discount line is called on the invoice, e.g. "Friends and family discount".</summary>
+    public string DiscountLabel { get; set; } = "Discount";
+
     // Invoice
     public string BusinessName { get; set; } = "";
     public string ContactLine { get; set; } = "";

@@ -208,6 +208,7 @@ public partial class MainViewModel : ObservableObject
             CreatedDate = DateTime.Today,
             // The date is set when the invoice is finalized. The number is a preview, taken when the job is saved.
             InvoiceNumber = _db.PeekNextInvoiceNumber(DateTime.Today),
+            DiscountPercent = s.DefaultDiscountPercent,
         };
         bool saved = OpenEditor?.Invoke(job) == true;
         AfterEditor();

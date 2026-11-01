@@ -87,6 +87,8 @@ Every plate is priced on its printer's rates.
 | Slicing | flat fee per unique part, however many plates or files it is split across |
 | 3D modeling | hours entered x hourly rate |
 | Post-processing | flat fee per job when ticked |
+| Discount | percent of everything above, per job (new jobs start with the default in Settings); the invoice shows full price, discount and total |
+| Customer-supplied material | not billed; the invoice shows what it would have cost at your rates, and a "Your savings" box adds it to the discount |
 | Extra costs per job | flat, when the job has a plate on a printer the cost applies to |
 
 Starting rates for a new printer: FDM $2.50/hr, 200 W, 5% waste, 5% markup; resin $2.50/hr, 100 W, 10% waste, 5% markup.

@@ -1,4 +1,4 @@
-PrintInvoicer 3.5
+PrintInvoicer 3.6
 =================
 
 Tracks 3D printing jobs and makes PDF invoices, for FDM and resin printers.

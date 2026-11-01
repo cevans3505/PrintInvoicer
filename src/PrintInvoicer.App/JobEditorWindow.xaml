@@ -105,6 +105,11 @@
                     <TextBlock Text="{Binding ModelingRateText}" Style="{StaticResource Small}" Margin="6,0,0,0" />
                 </StackPanel>
                 <CheckBox Content="{Binding PostProcessingText}" IsChecked="{Binding PostProcessing}" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBlock Text="Discount" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Text="{Binding DiscountPercent}" Width="60" ToolTip="Percent off the whole invoice. The invoice shows the full price, the discount and what they pay." />
+                    <TextBlock Text="% off the invoice" Style="{StaticResource Small}" Margin="6,0,0,0" />
+                </StackPanel>
 
                 <StackPanel Visibility="{Binding HasExtraCosts, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="Extra costs" Style="{StaticResource SectionHeader}" />
@@ -127,7 +132,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                         <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="Material" Style="{StaticResource Small}" ToolTip="Includes each printer's waste allowance and markup on your own material" />
@@ -150,10 +155,17 @@
                     <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding PostText}" />
                     <TextBlock Grid.Row="8" Text="Per-job extra costs" Visibility="{Binding HasJobExtras, Converter={StaticResource BoolToVis}}" />
                     <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding JobExtrasText}" Visibility="{Binding HasJobExtras, Converter={StaticResource BoolToVis}}" />
-                    <Separator Grid.Row="9" Grid.ColumnSpan="2" Margin="0,6" />
-                    <TextBlock Grid.Row="10" Text="Total" FontSize="16" FontWeight="Bold" />
-                    <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding TotalText}" FontSize="16" FontWeight="Bold" />
+                    <TextBlock Grid.Row="9" Text="Subtotal (full price)" Margin="0,4,0,0" Visibility="{Binding HasDiscount, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SubtotalText}" Margin="0,4,0,0" Visibility="{Binding HasDiscount, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Grid.Row="10" Text="{Binding DiscountLabelText}" Visibility="{Binding HasDiscount, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding DiscountText}" Visibility="{Binding HasDiscount, Converter={StaticResource BoolToVis}}" />
+                    <Separator Grid.Row="11" Grid.ColumnSpan="2" Margin="0,6" />
+                    <TextBlock Grid.Row="12" Text="Total" FontSize="16" FontWeight="Bold" />
+                    <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding TotalText}" FontSize="16" FontWeight="Bold" />
                 </Grid>
+
+                <TextBlock Text="{Binding CustomerMaterialText}" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Visibility="{Binding HasCustomerMaterial, Converter={StaticResource BoolToVis}}" />
 
                 <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,12,0,0">
                     <ItemsControl.ItemTemplate>

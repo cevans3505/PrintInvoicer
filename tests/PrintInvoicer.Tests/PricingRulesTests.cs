@@ -112,6 +112,71 @@ public sealed class PricingRulesTests : IDisposable
     }
 
     [Fact]
+    public void Discount_comes_off_the_whole_invoice()
+    {
+        // 10 pieces, 10 h at $1/h = $10.00, plus a $10 slicing fee: $20.00 at full price.
+        var job = BulkJob(10, 36000);
+        job.Parts[0].ChargeSlicing = true;
+        job.DiscountPercent = 15m;
+        var quote = PricingCalculator.Calculate(job, Book());
+        Assert.Equal(20.00m, quote.Subtotal);
+        Assert.Equal(3.00m, quote.DiscountAmount);
+        Assert.Equal(17.00m, quote.Total);
+
+        job.DiscountPercent = 12.5m;   // $2.50 exactly; a fraction of a cent rounds to the cent
+        Assert.Equal(2.50m, PricingCalculator.Calculate(job, Book()).DiscountAmount);
+        job.DiscountPercent = 33.333m;
+        Assert.Equal(6.67m, PricingCalculator.Calculate(job, Book()).DiscountAmount);
+
+        job.DiscountPercent = 150m;    // never more than the whole invoice
+        Assert.Equal(0m, PricingCalculator.Calculate(job, Book()).Total);
+        job.DiscountPercent = 0m;
+        Assert.Equal(20.00m, PricingCalculator.Calculate(job, Book()).Total);
+    }
+
+    [Fact]
+    public void Customer_material_is_valued_at_our_rates_but_not_billed()
+    {
+        var pla = new Filament { Id = 9, Vendor = "Generic", Material = "PLA", SpoolPrice = 20m, SpoolGrams = 1000m };
+        var printer = new Printer { Id = 1, Technology = PrintTechnology.Fdm, WasteAllowance = 0.05m, MaterialMarkup = 0.05m };
+        var job = new Job { Parts = { new JobPart { Name = "Clip", ChargeSlicing = false, Plates = { new JobPlate {
+            PrinterId = 1, Copies = 2,
+            Filaments =
+            {
+                new PlateFilament { SlotId = 1, SlicedGrams = 100m, FilamentId = 9, CustomerSupplied = true },
+                new PlateFilament { SlotId = 2, SlicedGrams = 10m, FilamentId = 9 },
+            } } } } } };
+        var quote = PricingCalculator.Calculate(job, new PriceBook(new AppSettings(), filaments: [pla], printers: [printer]));
+
+        // 100 g x $0.02/g x 1.1025 x 2 prints = $4.41, not billed; the 10 g of ours is billed.
+        Assert.Equal(4.41m, quote.CustomerMaterialValue);
+        Assert.Equal(PricingCalculator.Money(10m * 0.02m * 1.1025m * 2), quote.Total);
+        Assert.False(quote.HasUnvaluedCustomerMaterial);
+
+        job.Parts[0].Plates[0].Filaments[0].FilamentId = null;   // supplied, but no filament picked
+        var unpicked = PricingCalculator.Calculate(job, new PriceBook(new AppSettings(), filaments: [pla], printers: [printer]));
+        Assert.Equal(0m, unpicked.CustomerMaterialValue);
+        Assert.True(unpicked.HasUnvaluedCustomerMaterial);
+    }
+
+    [Fact]
+    public void Discount_is_saved_and_frozen_with_the_invoice()
+    {
+        var db = new Database(_path);
+        db.SavePrinter(new Printer { Name = "FDM", Technology = PrintTechnology.Fdm, MachineRatePerHour = 1m });
+        var job = BulkJob(10, 36000);
+        job.Parts[0].Plates[0].PrinterId = db.GetPrinters().Single().Id;
+        job.DiscountPercent = 20m;
+        db.SaveJob(job);
+        var saved = db.GetJobs().Single();
+        Assert.Equal(20m, saved.DiscountPercent);
+
+        saved.FinalizeInvoice(new DateTime(2026, 11, 1), redate: false);
+        PriceSnapshot.Freeze(saved, db.LoadPriceBook());
+        Assert.Equal(8.00m, saved.FinalizedTotal);   // $10.00 less 20%
+    }
+
+    [Fact]
     public void Material_with_no_price_warns()
     {
         var free = new Filament { Id = 9, Vendor = "Generic", Material = "PLA", SpoolPrice = 0m };

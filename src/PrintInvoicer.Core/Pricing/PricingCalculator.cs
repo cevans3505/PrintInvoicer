@@ -2,9 +2,17 @@ using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.Core.Pricing;
 
-public record SlotQuote(PlateFilament Slot, Filament? Filament, decimal Grams, decimal CostPerGram, decimal Material);
+public record SlotQuote(PlateFilament Slot, Filament? Filament, decimal Grams, decimal CostPerGram, decimal Material)
+{
+    /// <summary>Customer-supplied slots: what the material would have cost at your rates (all copies). Not billed.</summary>
+    public decimal SuppliedValue { get; init; }
+}
 
-public record ResinQuote(PlateResin Plate, Resin? Resin, decimal Ml, decimal CostPerMl, decimal Material);
+public record ResinQuote(PlateResin Plate, Resin? Resin, decimal Ml, decimal CostPerMl, decimal Material)
+{
+    /// <summary>Customer-supplied resin: what it would have cost at your rates (all copies). Not billed.</summary>
+    public decimal SuppliedValue { get; init; }
+}
 
 /// <param name="Quantity">How much of the basis was used, e.g. prints, hours or mL, across every copy.</param>
 public record ExtraCostQuote(ExtraCost Cost, decimal Quantity, decimal Amount);
@@ -53,7 +61,23 @@ public record JobQuote(
 {
     public decimal PartsAmount => Parts.Sum(p => p.LineAmount);
     public decimal JobExtrasAmount => JobExtras.Sum(e => e.Amount);
-    public decimal Total => PartsAmount + SlicingAmount + ModelingAmount + PostProcessingAmount + JobExtrasAmount;
+
+    /// <summary>Everything at full price, before any discount.</summary>
+    public decimal Subtotal => PartsAmount + SlicingAmount + ModelingAmount + PostProcessingAmount + JobExtrasAmount;
+
+    /// <summary>The job's discount, 0 to 100 percent of the subtotal.</summary>
+    public decimal DiscountPercent { get; init; }
+    public decimal DiscountAmount => PricingCalculator.Money(Subtotal * DiscountPercent / 100m);
+    public decimal Total => Subtotal - DiscountAmount;
+
+    /// <summary>What the material the customer supplied would have cost at your rates. Not billed.</summary>
+    public decimal CustomerMaterialValue => PricingCalculator.Money(
+        AllPlates.Sum(p => p.Slots.Sum(s => s.SuppliedValue) + (p.Resin?.SuppliedValue ?? 0)));
+
+    /// <summary>Some customer-supplied material has no filament or resin picked, so it could not be valued.</summary>
+    public bool HasUnvaluedCustomerMaterial => AllPlates.Any(p =>
+        p.Slots.Any(s => s.Slot.CustomerSupplied && s.Filament is null && s.Grams > 0) ||
+        p.Resin is { Plate.CustomerSupplied: true, Resin: null, Ml: > 0 });
 
     public IEnumerable<PlateQuote> AllPlates => Parts.SelectMany(p => p.Plates);
 }
@@ -112,7 +136,8 @@ public static class PricingCalculator
                                 warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {r.DisplayName} has no price (bottle price or size is 0), so its material is $0. Set it on the Materials tab.");
                         }
                     }
-                    resin = new ResinQuote(pr, r, pr.EffectiveMl, cpm, material);
+                    decimal suppliedValue = pr.CustomerSupplied && r is not null ? pr.EffectiveMl * r.CostPerMl * factor * plate.Copies : 0m;
+                    resin = new ResinQuote(pr, r, pr.EffectiveMl, cpm, material) { SuppliedValue = suppliedValue };
                 }
                 else
                 {
@@ -136,7 +161,8 @@ public static class PricingCalculator
                                     warnings.Add($"{part.Name}, plate {plate.PlateIndex}: {f.DisplayName} has no price (spool price or size is 0), so its material is $0. Set it on the Materials tab.");
                             }
                         }
-                        slots.Add(new SlotQuote(slot, f, grams, cpg, material));
+                        decimal suppliedValue = slot.CustomerSupplied && f is not null ? grams * f.CostPerGram * factor * plate.Copies : 0m;
+                        slots.Add(new SlotQuote(slot, f, grams, cpg, material) { SuppliedValue = suppliedValue });
                     }
                 }
 
@@ -203,7 +229,10 @@ public static class PricingCalculator
         decimal modeling = Money(job.ModelingHours * s.ModelingRatePerHour);
         decimal post = job.PostProcessing ? (v2 ? Money(s.PostProcessingFee) : s.PostProcessingFee) : 0m;
 
-        var quote = new JobQuote(parts, slicingCount, slicing, job.ModelingHours, modeling, post, jobExtras, warnings);
+        var quote = new JobQuote(parts, slicingCount, slicing, job.ModelingHours, modeling, post, jobExtras, warnings)
+        {
+            DiscountPercent = Math.Clamp(job.DiscountPercent, 0m, 100m),
+        };
         if (job.Finalized && job.FinalizedTotal is decimal sent && sent != quote.Total)
             warnings.Add($"This invoice was finalized at ${sent:0.00} but now works out to ${quote.Total:0.00}. Check it before sending it again.");
         return quote;

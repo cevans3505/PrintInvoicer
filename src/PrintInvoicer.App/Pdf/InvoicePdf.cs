@@ -279,8 +279,16 @@ public static class InvoicePdf
                         Row("Post-processing", q.PostProcessingAmount);
                     foreach (var e in q.JobExtras)
                         Row(e.Cost.Name, e.Amount, "per job");
+                    if (q.DiscountAmount > 0)
+                    {
+                        sum.Item().PaddingVertical(4).LineHorizontal(1).LineColor(Rule);
+                        Row("Subtotal (full price)", q.Subtotal);
+                        Row($"{s.DiscountLabel} ({q.DiscountPercent:0.##}%)", -q.DiscountAmount);
+                    }
                     sum.Item().PaddingVertical(4).LineHorizontal(1).LineColor(Rule);
                     Row(detailed ? "Total invoiced" : "Total", q.Total, bold: true);
+                    if (q.CustomerMaterialValue > 0)
+                        Row("Customer's material at our rates", q.CustomerMaterialValue, "not billed");
                 });
             });
 
@@ -364,6 +372,8 @@ public static class InvoicePdf
                             : f is null ? "not set"
                             : $"{Format.Money(first.Slot.CostPerGram * 1000 * first.Printer.MaterialFactor)} / kg";
                         string measured = m.Any(x => x.Slot.Slot.OverrideGrams.HasValue) ? "*" : "";
+                        decimal supplied = PricingCalculator.Money(m.Sum(x => x.Slot.SuppliedValue));
+                        if (supplied > 0) label += $" (worth {Format.Money(supplied)} at our rates)";
                         lines.Add((label, $"{grams:0.##} g{measured}", rate, PricingCalculator.Money(m.Sum(x => x.Slot.Material))));
                     }
 
@@ -380,7 +390,9 @@ public static class InvoicePdf
                             : first.Resin.Resin is null ? "not set"
                             : $"{Format.Money(first.Resin.CostPerMl * 1000 * first.Printer.MaterialFactor)} / L";
                         string measured = m.Any(x => x.Resin.Plate.OverrideMl.HasValue) ? "*" : "";
-                        lines.Add((ResinLabel(first.Resin, detailed: false), $"{ml:0.##} mL{measured}", rate,
+                        decimal supplied = PricingCalculator.Money(m.Sum(x => x.Resin.SuppliedValue));
+                        string resinLabel = ResinLabel(first.Resin, detailed: false) + (supplied > 0 ? $" (worth {Format.Money(supplied)} at our rates)" : "");
+                        lines.Add((resinLabel, $"{ml:0.##} mL{measured}", rate,
                             PricingCalculator.Money(m.Sum(x => x.Resin.Material))));
                     }
 
@@ -435,12 +447,53 @@ public static class InvoicePdf
             col.Item().PaddingTop(14).Row(bottom =>
             {
                 bottom.RelativeItem().PaddingRight(20).Element(x => PlatePictures(x, q, captions: false));
-                bottom.ConstantItem(220).AlignMiddle().Row(r =>
+                bottom.ConstantItem(240).AlignMiddle().Column(totals =>
                 {
-                    r.RelativeItem().Text("Total").FontSize(15).Bold();
-                    r.AutoItem().AlignRight().Text(Format.Money(q.Total)).FontSize(15).Bold();
+                    if (q.DiscountAmount > 0)
+                    {
+                        totals.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("Subtotal");
+                            r.AutoItem().AlignRight().Text(Format.Money(q.Subtotal));
+                        });
+                        totals.Item().PaddingBottom(4).Row(r =>
+                        {
+                            r.RelativeItem().Text($"{s.DiscountLabel} ({q.DiscountPercent:0.##}%)");
+                            r.AutoItem().AlignRight().Text("-" + Format.Money(q.DiscountAmount));
+                        });
+                        totals.Item().PaddingBottom(4).LineHorizontal(1).LineColor(Rule);
+                    }
+                    totals.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text("Total").FontSize(15).Bold();
+                        r.AutoItem().AlignRight().Text(Format.Money(q.Total)).FontSize(15).Bold();
+                    });
                 });
             });
+
+            // What working together saves the customer: the discount, and the material they supplied at our rates.
+            if (q.DiscountAmount > 0 || q.CustomerMaterialValue > 0)
+            {
+                col.Item().EnsureSpace(90).PaddingTop(14).AlignRight().Width(300).Border(1).BorderColor("#BBBBBB").Padding(10).Column(box =>
+                {
+                    box.Item().PaddingBottom(4).Text("Your savings on this invoice").SemiBold().FontColor(Accent);
+                    void Saving(string label, decimal amount, bool bold = false) => box.Item().Row(r =>
+                    {
+                        var l = r.RelativeItem().Text(label);
+                        var a = r.AutoItem().AlignRight().Text(Format.Money(amount));
+                        if (bold) { l.SemiBold(); a.SemiBold(); }
+                    });
+                    if (q.DiscountAmount > 0) Saving($"{s.DiscountLabel} ({q.DiscountPercent:0.##}%)", q.DiscountAmount);
+                    if (q.CustomerMaterialValue > 0) Saving("Material you supplied, at our rates", q.CustomerMaterialValue);
+                    if (q.DiscountAmount > 0 && q.CustomerMaterialValue > 0)
+                    {
+                        box.Item().PaddingVertical(3).LineHorizontal(0.75f).LineColor(Rule);
+                        Saving("Total saved", q.DiscountAmount + q.CustomerMaterialValue, bold: true);
+                    }
+                    if (q.HasUnvaluedCustomerMaterial)
+                        box.Item().PaddingTop(4).Text("Some material you supplied is not included.").FontSize(8).FontColor(Muted);
+                });
+            }
 
             bool hasNotes = !string.IsNullOrWhiteSpace(job.Notes);
             bool overridden = HasMeasuredMaterial(job);

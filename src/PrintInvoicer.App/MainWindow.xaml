@@ -390,6 +390,9 @@
                     <StackPanel Orientation="Horizontal"><Label Content="3D modeling ($/hr)" /><TextBox Text="{Binding Model.ModelingRatePerHour}" /></StackPanel>
                     <StackPanel Orientation="Horizontal"><Label Content="Slicing (per unique part)" /><TextBox Text="{Binding Model.SlicingFeePerPart}" /></StackPanel>
                     <StackPanel Orientation="Horizontal"><Label Content="Post-processing (flat per job)" /><TextBox Text="{Binding Model.PostProcessingFee}" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Discount on new jobs (%)" /><TextBox Text="{Binding Model.DefaultDiscountPercent}" />
+                        <TextBlock Text="each job can change its own" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" /></StackPanel>
+                    <StackPanel Orientation="Horizontal"><Label Content="Discount name on invoices" /><TextBox Text="{Binding Model.DiscountLabel}" Width="260" /></StackPanel>
 
                     <TextBlock Text="Invoice" Style="{StaticResource SectionHeader}" />
                     <StackPanel Orientation="Horizontal"><Label Content="Your name (invoice header)" /><TextBox Text="{Binding Model.BusinessName}" Width="260" /></StackPanel>

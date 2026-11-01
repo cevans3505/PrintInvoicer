@@ -43,6 +43,11 @@ internal sealed class SampleShop : IDisposable
         FdmJob = new Job { Title = "Wire Brush Inserts", Customer = "Harbor Dive Shop", InvoiceNumber = "2026-001", Notes = "Sample notes" };
         JobBuilder.AddFile(FdmJob, BambuFileReader.Read(TestFiles.Fixture("Wire_Brush_Insert.gcode.3mf")), Db.GetFilaments(),
             Db.GetMappings(), printerId: fdm.Id);
+        // A friends-and-family discount, and the customer supplying the main color.
+        s.DiscountLabel = "Friends and family discount";
+        Db.SaveSettings(s);
+        FdmJob.DiscountPercent = 15m;
+        FdmJob.Parts[0].Plates[0].Filaments[^1].CustomerSupplied = true;
         Db.SaveJob(FdmJob);
 
         ResinJob = new Job { Title = "Regulator clips", Customer = "Harbor Dive Shop", InvoiceNumber = "2026-002" };

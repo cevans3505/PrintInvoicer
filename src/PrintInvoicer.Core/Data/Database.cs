@@ -115,6 +115,7 @@ public class Database
         AddColumnIfMissing(c, "jobs", "finalized", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing(c, "jobs", "finalized_date", "TEXT");
         AddColumnIfMissing(c, "jobs", "excluded_extra_costs", "TEXT NOT NULL DEFAULT ''");
+        AddColumnIfMissing(c, "jobs", "discount_percent", "TEXT NOT NULL DEFAULT '0'");
         AddColumnIfMissing(c, "jobs", "price_snapshot", "TEXT");
         AddColumnIfMissing(c, "jobs", "finalized_total", "TEXT");
         AddColumnIfMissing(c, "plates", "has_failures", "INTEGER NOT NULL DEFAULT 0");
@@ -588,7 +589,7 @@ public class Database
 
         using (var cmd = c.CreateCommand())
         {
-            cmd.CommandText = "SELECT id, title, customer, invoice_number, created_date, invoice_date, modeling_hours, post_processing, paid, paid_date, notes, printed, printed_date, finalized, finalized_date, excluded_extra_costs, price_snapshot, finalized_total FROM jobs ORDER BY created_date DESC, id DESC";
+            cmd.CommandText = "SELECT id, title, customer, invoice_number, created_date, invoice_date, modeling_hours, post_processing, paid, paid_date, notes, printed, printed_date, finalized, finalized_date, excluded_extra_costs, price_snapshot, finalized_total, discount_percent FROM jobs ORDER BY created_date DESC, id DESC";
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
@@ -612,6 +613,7 @@ public class Database
                     ExcludedExtraCosts = IdSet(r.GetString(15)),
                     PriceSnapshot = r.IsDBNull(16) ? null : r.GetString(16),
                     FinalizedTotal = r.IsDBNull(17) ? null : Dec(r.GetString(17)),
+                    DiscountPercent = Dec(r.GetString(18)),
                 };
                 jobs[j.Id] = j;
             }
@@ -711,13 +713,14 @@ public class Database
             ("$fin", job.Finalized ? 1 : 0), ("$findate", job.FinalizedDate is DateTime fd ? DateStr(fd) : null),
             ("$excluded", string.Join(",", job.ExcludedExtraCosts.Order())),
             ("$snapshot", job.PriceSnapshot), ("$ftotal", job.FinalizedTotal is decimal ft ? Str(ft) : null),
+            ("$discount", Str(job.DiscountPercent)),
         };
 
         if (job.Id == 0)
         {
             job.Id = Scalar<long>(c, """
-                INSERT INTO jobs(title, customer, invoice_number, created_date, invoice_date, modeling_hours, post_processing, paid, paid_date, notes, printed, printed_date, finalized, finalized_date, excluded_extra_costs, price_snapshot, finalized_total)
-                VALUES ($title, $customer, $inv, $created, $invdate, $model, $post, $paid, $paiddate, $notes, $printed, $printeddate, $fin, $findate, $excluded, $snapshot, $ftotal) RETURNING id
+                INSERT INTO jobs(title, customer, invoice_number, created_date, invoice_date, modeling_hours, post_processing, paid, paid_date, notes, printed, printed_date, finalized, finalized_date, excluded_extra_costs, price_snapshot, finalized_total, discount_percent)
+                VALUES ($title, $customer, $inv, $created, $invdate, $model, $post, $paid, $paiddate, $notes, $printed, $printeddate, $fin, $findate, $excluded, $snapshot, $ftotal, $discount) RETURNING id
                 """, args);
         }
         else
@@ -726,7 +729,7 @@ public class Database
                 UPDATE jobs SET title=$title, customer=$customer, invoice_number=$inv, created_date=$created, invoice_date=$invdate,
                     modeling_hours=$model, post_processing=$post, paid=$paid, paid_date=$paiddate, notes=$notes,
                     printed=$printed, printed_date=$printeddate, finalized=$fin, finalized_date=$findate, excluded_extra_costs=$excluded,
-                    price_snapshot=$snapshot, finalized_total=$ftotal WHERE id=$id
+                    price_snapshot=$snapshot, finalized_total=$ftotal, discount_percent=$discount WHERE id=$id
                 """, args);
             Exec(c, "DELETE FROM parts WHERE job_id = $id", ("$id", job.Id));
         }
