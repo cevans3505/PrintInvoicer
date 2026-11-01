@@ -112,9 +112,10 @@ These run on a developer's PC or on GitHub, never on users' machines:
 - **`make-readme-images.ps1`** rebuilds the three README pictures. It starts `dotnet test` for one screen test
   (`ReadmeImageTests`), which runs offscreen, creates the folders if needed and writes PNG files to `docs/images` in the
   repository and to the test's own `bin` folder. The script then reads each picture's last-write time to check it was
-  rebuilt. A normal test run, CI and `publish.ps1` write only to the `bin` folder. It is a developer tool and is not in
-  the release zip. The script's program start and file read are tagged `# AUDIT:`, and the test's folder and file
-  writes `// AUDIT:` under `tests`, outside the `src` count above.
+  rebuilt. A normal test run, CI and `publish.ps1` write to the test's `bin` folder and to a temporary folder under
+  `%TEMP%` that is deleted afterwards, but never to `docs/images`. It is a developer tool and is not in the release zip.
+  The script's program start and file read are tagged `# AUDIT:`. The `// AUDIT:` tags under `tests` are in
+  `WpfHost.cs` (screenshots) and `ReadmeImageTests.cs` (README pictures), outside the `src` count above.
 - **`.github/workflows/ci.yml`** builds and tests every change on a GitHub Windows machine, with a read-only token.
 - **`.github/workflows/release.yml`**, on a version tag, builds the program the same way and attaches the zip to a
   **draft** release. Only that last step has write access, and a person publishes the release by hand.
