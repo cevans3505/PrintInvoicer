@@ -10,7 +10,9 @@ namespace PrintInvoicer.Core.Pricing;
 /// </summary>
 public static class PriceSnapshot
 {
-    private sealed record Contents(AppSettings Settings, List<Filament> Filaments, List<Resin> Resins, List<Printer> Printers, List<ExtraCost> ExtraCosts);
+    /// <param name="RulesVersion">Pricing rules the invoice was priced under; snapshots from before it was recorded are version 1.</param>
+    private sealed record Contents(AppSettings Settings, List<Filament> Filaments, List<Resin> Resins, List<Printer> Printers,
+        List<ExtraCost> ExtraCosts, int RulesVersion = 1);
 
     private static readonly JsonSerializerOptions Json = new() { Converters = { new JsonStringEnumConverter() } };
 
@@ -22,7 +24,7 @@ public static class PriceSnapshot
         // The printer each plate is actually priced on, including the default stand-in when none is set up.
         var printers = plates.Select(p => book.PrinterFor(p).Printer).DistinctBy(p => p.Id).ToList();
         var extras = book.ExtraCosts.Where(e => e.Active).ToList();
-        return JsonSerializer.Serialize(new Contents(book.Settings, filaments, resins, printers, extras), Json);
+        return JsonSerializer.Serialize(new Contents(book.Settings, filaments, resins, printers, extras, book.RulesVersion), Json);
     }
 
     /// <summary>
@@ -32,7 +34,7 @@ public static class PriceSnapshot
     {
         var c = JsonSerializer.Deserialize<Contents>(snapshot, Json) ?? throw new JsonException("Empty price snapshot.");
         c.Settings.InvoiceFolder = current.InvoiceFolder;
-        return new PriceBook(c.Settings, c.Filaments, c.Resins, c.Printers, c.ExtraCosts);
+        return new PriceBook(c.Settings, c.Filaments, c.Resins, c.Printers, c.ExtraCosts) { RulesVersion = c.RulesVersion };
     }
 
     /// <summary>The prices to use for this job: its snapshot once finalized, otherwise today's.</summary>

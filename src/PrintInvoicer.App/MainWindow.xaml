@@ -180,7 +180,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <CheckBox IsChecked="{Binding Paid, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" ToolTip="Tick when the shop has paid" />
+                                              VerticalAlignment="Center" ToolTip="Tick when the customer has paid" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -353,6 +353,15 @@
                         <DataGridComboBoxColumn Header="Applies to" ItemsSource="{x:Static vm:ExtraCostRowViewModel.AppliesToOptions}"
                                                 SelectedValuePath="Value" DisplayMemberPath="Name"
                                                 SelectedValueBinding="{Binding AppliesTo, UpdateSourceTrigger=PropertyChanged}" Width="120" />
+                        <DataGridTemplateColumn Header="On customer's material" Width="170">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding ChargeCustomerMaterial, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Visibility="{Binding IsMaterialBasis, Converter={StaticResource BoolToVis}}"
+                                              ToolTip="Also charge this per gram or mL of material the customer supplied. Right for wear and handling; untick for a cost that comes with buying the material." />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridCheckBoxColumn Header="Active" Binding="{Binding Active, UpdateSourceTrigger=PropertyChanged}" Width="65" />
                         <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" />
                     </DataGrid.Columns>

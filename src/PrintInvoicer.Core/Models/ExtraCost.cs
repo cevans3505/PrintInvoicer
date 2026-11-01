@@ -24,6 +24,14 @@ public class ExtraCost
     /// <summary>Only plates on this kind of printer are charged; null means every printer.</summary>
     public PrintTechnology? AppliesTo { get; set; }
 
+    /// <summary>
+    /// Per-gram and per-mL costs only: also count material the customer supplied. Right for wear and handling; untick
+    /// for a cost that comes with buying the material.
+    /// </summary>
+    public bool ChargeCustomerMaterial { get; set; } = true;
+
+    public bool IsMaterialBasis => Basis is CostBasis.PerGramFilament or CostBasis.PerMlResin;
+
     public bool Active { get; set; } = true;
     public string Notes { get; set; } = "";
 

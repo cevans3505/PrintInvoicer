@@ -66,14 +66,17 @@ public static class PricingCalculator
 
     /// <summary>
     /// Prices a job. Per plate, on its printer's rates: material (amount x cost x (1 + waste) x (1 + markup), or zero
-    /// when the shop supplied it), machine time, electricity, and any extra costs counted per print, hour or material,
+    /// when the customer supplied it), machine time, electricity, and any extra costs counted per print, hour or material,
     /// each multiplied by how many times the plate is printed. Each part's cost is turned into a unit price rounded to
-    /// the cent, and the invoice line is unit x quantity, so what the shop sees always multiplies out exactly.
-    /// Per-job extra costs are separate lines, charged when the job has a plate on a printer they apply to.
+    /// the cent, and the invoice line is unit x quantity, so what the customer sees always multiplies out exactly. When
+    /// cents would put the line more than <see cref="SubCentThreshold"/> off the cost (cheap parts in bulk), the unit
+    /// price keeps 4 decimals instead. Per-job extra costs are separate lines, charged when the job has a plate on a
+    /// printer they apply to. <see cref="PriceBook.RulesVersion"/> selects older rules for invoices frozen under them.
     /// </summary>
     public static JobQuote Calculate(Job job, PriceBook book)
     {
         var s = book.Settings;
+        bool v2 = book.RulesVersion >= 2;
         var warnings = new List<string>();
         var parts = new List<PartQuote>();
         var extras = book.ExtraCosts.Where(e => e.Active && !job.ExcludedExtraCosts.Contains(e.Id)).ToList();
@@ -144,8 +147,10 @@ public static class PricingCalculator
                     {
                         CostBasis.PerPrint => plate.Copies,
                         CostBasis.PerPrintHour => hours * plate.Copies,
-                        CostBasis.PerMlResin => (resin?.Ml ?? 0) * plate.Copies,
-                        CostBasis.PerGramFilament => slots.Sum(x => x.Grams) * plate.Copies,
+                        CostBasis.PerMlResin when resin is not null && (!v2 || e.ChargeCustomerMaterial || !resin.Plate.CustomerSupplied)
+                            => resin.Ml * plate.Copies,
+                        CostBasis.PerGramFilament
+                            => slots.Where(x => !v2 || e.ChargeCustomerMaterial || !x.Slot.CustomerSupplied).Sum(x => x.Grams) * plate.Copies,
                         _ => 0,
                     };
                     if (used > 0) plateExtras.Add(new ExtraCostQuote(e, used, used * e.Cost));
@@ -158,12 +163,20 @@ public static class PricingCalculator
             int qty = part.Quantity;
             // Dividing by 3600 s, or by a 750 g spool, leaves a shortfall in decimal's last digit that would turn an
             // exact half cent into $x.xx4999... and round it down; 15 places is far below a cent and far above that shortfall.
-            decimal printCost = Math.Round(plates.Sum(p => p.Total), 15, MidpointRounding.AwayFromZero);
+            decimal printCost = v2 ? Math.Round(plates.Sum(p => p.Total), 15, MidpointRounding.AwayFromZero) : plates.Sum(p => p.Total);
             decimal unit, line;
             if (qty > 0)
             {
                 unit = Money(printCost / qty);
                 line = unit * qty;
+                if (v2 && Math.Abs(line - printCost) > SubCentThreshold)
+                {
+                    // Cheap parts in bulk: 1,000 pieces costing $4.00 would round to $0.00 each.
+                    unit = Math.Round(printCost / qty, 4, MidpointRounding.AwayFromZero);
+                    line = Money(unit * qty);
+                }
+                if (printCost > 0 && line == 0)
+                    warnings.Add($"{part.Name}: costs {printCost:0.00##} but bills $0.00. Check the quantity.");
             }
             else
             {
@@ -182,9 +195,9 @@ public static class PricingCalculator
 
         int slicingCount = job.Parts.Count(p => p.ChargeSlicing);
         // The fee is shown to the cent, so that is what is charged per part, as with a part's unit price.
-        decimal slicing = slicingCount * Money(s.SlicingFeePerPart);
+        decimal slicing = slicingCount * (v2 ? Money(s.SlicingFeePerPart) : s.SlicingFeePerPart);
         decimal modeling = Money(job.ModelingHours * s.ModelingRatePerHour);
-        decimal post = job.PostProcessing ? Money(s.PostProcessingFee) : 0m;
+        decimal post = job.PostProcessing ? (v2 ? Money(s.PostProcessingFee) : s.PostProcessingFee) : 0m;
 
         var quote = new JobQuote(parts, slicingCount, slicing, job.ModelingHours, modeling, post, jobExtras, warnings);
         if (job.Finalized && job.FinalizedTotal is decimal sent && sent != quote.Total)
@@ -198,6 +211,9 @@ public static class PricingCalculator
         var technologies = job.AllPlates.Select(p => p.Technology).ToHashSet();
         return book.ExtraCosts.Where(e => e.Active && technologies.Any(e.AppliesToTechnology));
     }
+
+    /// <summary>How far a part's line may drift from its cost through per-piece rounding before cents give way to 4 decimals.</summary>
+    public const decimal SubCentThreshold = 0.50m;
 
     public static decimal Money(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }

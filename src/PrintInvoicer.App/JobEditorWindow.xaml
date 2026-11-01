@@ -242,7 +242,7 @@
                                                                     <ColumnDefinition Width="74" />
                                                                     <ColumnDefinition Width="30" />
                                                                     <ColumnDefinition Width="44" />
-                                                                    <ColumnDefinition Width="126" />
+                                                                    <ColumnDefinition Width="150" />
                                                                     <ColumnDefinition Width="*" MinWidth="56" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <TextBlock Text="Resin" VerticalAlignment="Center" />
@@ -266,7 +266,7 @@
                                                                 <Button Grid.Column="5" Content="reset" Command="{Binding ResetMlCommand}" Style="{StaticResource LinkButton}"
                                                                         ToolTip="{Binding SlicedMlText}" HorizontalAlignment="Left"
                                                                         Visibility="{Binding IsMlOverridden, Converter={StaticResource BoolToVis}}" />
-                                                                <CheckBox Grid.Column="6" Content="Shop supplied" IsChecked="{Binding ResinCustomerSupplied}" VerticalAlignment="Center" />
+                                                                <CheckBox Grid.Column="6" Content="Customer supplied" IsChecked="{Binding ResinCustomerSupplied}" VerticalAlignment="Center" />
                                                                 <TextBlock Grid.Column="7" Text="{Binding ResinCostText}" ToolTip="{Binding ResinCostTip}" Style="{StaticResource Small}" />
                                                             </Grid>
 
@@ -285,7 +285,7 @@
                                                                                 <ColumnDefinition Width="74" />
                                                                                 <ColumnDefinition Width="30" />
                                                                                 <ColumnDefinition Width="44" />
-                                                                                <ColumnDefinition Width="126" />
+                                                                                <ColumnDefinition Width="150" />
                                                                                 <ColumnDefinition Width="*" MinWidth="56" />
                                                                             </Grid.ColumnDefinitions>
                                                                             <Border Style="{StaticResource Swatch}" Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}" HorizontalAlignment="Left" />
@@ -309,7 +309,7 @@
                                                                             <Button Grid.Column="6" Content="reset" Command="{Binding ResetGramsCommand}" Style="{StaticResource LinkButton}"
                                                                                     ToolTip="{Binding SlicedGramsText}" HorizontalAlignment="Left"
                                                                                     Visibility="{Binding IsGramsOverridden, Converter={StaticResource BoolToVis}}" />
-                                                                            <CheckBox Grid.Column="7" Content="Shop supplied" IsChecked="{Binding CustomerSupplied}" VerticalAlignment="Center" />
+                                                                            <CheckBox Grid.Column="7" Content="Customer supplied" IsChecked="{Binding CustomerSupplied}" VerticalAlignment="Center" />
                                                                             <TextBlock Grid.Column="8" Text="{Binding CostText}" ToolTip="{Binding CostTip}" Style="{StaticResource Small}" />
                                                                         </Grid>
                                                                     </DataTemplate>

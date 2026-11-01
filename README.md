@@ -53,7 +53,7 @@ A fork that publishes its own releases should change `UpdateService.Repository`.
      the print time and grams or mL.
 2. Per plate, set how many times it is printed and how many parts are on it, and pick the
    printer if you have more than one of that kind. Per AMS slot or resin, check the material pick and tick
-   **Shop supplied** when the shop provided it. Typing grams, mL or print time overrides the slicer value (highlighted,
+   **Customer supplied** when the customer provided it. Typing grams, mL or print time overrides the slicer value (highlighted,
    with a reset link). Resin files do not record how many parts are on the plate, so a resin plate asks for the count
    and finalizing warns until it is set or confirmed.
 3. Enter modeling hours and tick post-processing if they apply. Untick any extra cost that should be left off this job.
@@ -79,17 +79,20 @@ Every plate is priced on its printer's rates.
 | --- | --- |
 | Material, own filament | grams x cost per gram x (1 + waste) x (1 + markup), per print of the plate |
 | Material, own resin | mL x cost per mL x (1 + waste) x (1 + markup), per print of the plate |
-| Material, shop supplied | $0 (no waste or markup) |
+| Material, customer supplied | $0 (no waste or markup) |
 | Machine time | print hours x the printer's machine rate |
 | Electricity | print hours x the printer's watts / 1000 x $/kWh |
-| Extra costs per print, hour, mL or g | amount used across every print x cost, added to the part |
-| Printed part line | sum of its plates' costs / pieces, rounded to the cent, x pieces |
+| Extra costs per print, hour, mL or g | amount used across every print x cost, added to the part (per-g and per-mL costs can be set to skip customer-supplied material) |
+| Printed part line | sum of its plates' costs / pieces, rounded to the cent, x pieces; if that puts the line more than $0.50 off the cost (cheap parts in bulk), the per-piece price keeps 4 decimals |
 | Slicing | flat fee per unique part, however many plates or files it is split across |
 | 3D modeling | hours entered x hourly rate |
 | Post-processing | flat fee per job when ticked |
 | Extra costs per job | flat, when the job has a plate on a printer the cost applies to |
 
 Starting rates for a new printer: FDM $2.50/hr, 200 W, 5% waste, 5% markup; resin $2.50/hr, 100 W, 10% waste, 5% markup.
+Finalized invoices keep the pricing rules they were priced under, so a later change to these rules never re-totals an
+invoice already sent.
+
 Shop defaults: $0.20/kWh, $50/hr modeling, $10 slicing, $20 post-processing. All are editable.
 
 Parts are grouped by the object name in the sliced file (resin files use the file name). To merge two parts, rename one to

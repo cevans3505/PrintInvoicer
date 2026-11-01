@@ -2,6 +2,16 @@ using PrintInvoicer.Core.Models;
 
 namespace PrintInvoicer.Core.Pricing;
 
+/// <summary>
+/// Versions of the pricing rules. 1: up to 3.4. 2: fees rounded to the cent before multiplying; a part's cost is
+/// rounded to 15 places before dividing (so exact half cents round up); a per-piece price that would put the line more
+/// than $0.50 off cost is kept to 4 decimals; per-gram and per-mL extra costs can skip customer-supplied material.
+/// </summary>
+public static class PricingRules
+{
+    public const int Current = 2;
+}
+
 /// <summary>Everything a job is priced from: shop settings, printers, materials and extra costs.</summary>
 public sealed class PriceBook
 {
@@ -10,6 +20,12 @@ public sealed class PriceBook
     public IReadOnlyDictionary<long, Resin> Resins { get; }
     public IReadOnlyDictionary<long, Printer> Printers { get; }
     public IReadOnlyList<ExtraCost> ExtraCosts { get; }
+
+    /// <summary>
+    /// Which version of the pricing rules to apply. Today's prices use the current rules; a finalized invoice's frozen
+    /// prices carry the version it was priced under, so later rule changes never re-total an invoice already sent.
+    /// </summary>
+    public int RulesVersion { get; init; } = PricingRules.Current;
 
     public PriceBook(AppSettings settings, IEnumerable<Filament>? filaments = null, IEnumerable<Resin>? resins = null,
         IEnumerable<Printer>? printers = null, IEnumerable<ExtraCost>? extraCosts = null)

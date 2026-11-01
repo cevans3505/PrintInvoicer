@@ -172,7 +172,24 @@ public class ExtraCostRowViewModel : ObservableObject
 
     public string Name { get => Cost.Name; set => Set(Cost.Name, value ?? "", (c, v) => c.Name = v, nameof(Name)); }
     public decimal Amount { get => Cost.Cost; set => Set(Cost.Cost, Math.Max(0, value), (c, v) => c.Cost = v, nameof(Amount)); }
-    public CostBasis Basis { get => Cost.Basis; set => Set(Cost.Basis, value, (c, v) => c.Basis = v, nameof(Basis)); }
+    public CostBasis Basis
+    {
+        get => Cost.Basis;
+        set
+        {
+            Set(Cost.Basis, value, (c, v) => c.Basis = v, nameof(Basis));
+            OnPropertyChanged(nameof(IsMaterialBasis));
+        }
+    }
+
+    /// <summary>The customer's-material option only means something for per-gram and per-mL costs.</summary>
+    public bool IsMaterialBasis => Cost.IsMaterialBasis;
+
+    public bool ChargeCustomerMaterial
+    {
+        get => Cost.ChargeCustomerMaterial;
+        set => Set(Cost.ChargeCustomerMaterial, value, (c, v) => c.ChargeCustomerMaterial = v, nameof(ChargeCustomerMaterial));
+    }
 
     public int AppliesTo
     {

@@ -147,8 +147,8 @@ public static class InvoicePdf
                 {
                     r.RelativeItem().Text(PrettyName(p.Part.Name)).FontSize(12).SemiBold();
                     r.AutoItem().Text(detailed
-                        ? $"{p.Quantity} pcs, cost {Format.Money(p.PrintCost)}, billed {p.Quantity} x {Format.Money(p.UnitPrice)} = {Format.Money(p.LineAmount)}"
-                        : $"{p.Quantity} pcs x {Format.Money(p.UnitPrice)} = {Format.Money(p.LineAmount)}").SemiBold();
+                        ? $"{p.Quantity} pcs, cost {Format.Money(p.PrintCost)}, billed {p.Quantity} x {Format.Rate(p.UnitPrice)} = {Format.Money(p.LineAmount)}"
+                        : $"{p.Quantity} pcs x {Format.Rate(p.UnitPrice)} = {Format.Money(p.LineAmount)}").SemiBold();
                 });
 
                 foreach (var pl in p.Plates)
@@ -212,7 +212,7 @@ public static class InvoicePdf
                         foreach (var slot in pl.Slots)
                         {
                             var f = slot.Filament ?? filament(slot.Slot.FilamentId);
-                            string label = slot.Slot.CustomerSupplied ? $"{f?.DisplayName ?? slot.Slot.SlicerProfile} (shop supplied)"
+                            string label = slot.Slot.CustomerSupplied ? $"{f?.DisplayName ?? slot.Slot.SlicerProfile} (customer supplied)"
                                 : f?.DisplayName ?? (detailed ? $"{slot.Slot.SlicerProfile} (no filament selected)" : slot.Slot.SlicerProfile);
                             string grams = $"{slot.Grams:0.##}" + (slot.Slot.OverrideGrams.HasValue ? "*" : "");
                             decimal perKg = slot.CostPerGram * 1000 * (detailed ? 1 : pl.Printer.MaterialFactor);
@@ -360,7 +360,7 @@ public static class InvoicePdf
                         var f = first.Slot.Filament ?? filament(first.Slot.Slot.FilamentId);
                         string label = f?.DisplayName ?? first.Slot.Slot.SlicerProfile;
                         decimal grams = m.Sum(x => x.Slot.Grams * x.Copies);
-                        string rate = first.Slot.Slot.CustomerSupplied ? "shop supplied"
+                        string rate = first.Slot.Slot.CustomerSupplied ? "customer supplied"
                             : f is null ? "not set"
                             : $"{Format.Money(first.Slot.CostPerGram * 1000 * first.Printer.MaterialFactor)} / kg";
                         string measured = m.Any(x => x.Slot.Slot.OverrideGrams.HasValue) ? "*" : "";
@@ -376,7 +376,7 @@ public static class InvoicePdf
                     {
                         var first = m.First();
                         decimal ml = m.Sum(x => x.Resin.Ml * x.Copies);
-                        string rate = first.Resin.Plate.CustomerSupplied ? "shop supplied"
+                        string rate = first.Resin.Plate.CustomerSupplied ? "customer supplied"
                             : first.Resin.Resin is null ? "not set"
                             : $"{Format.Money(first.Resin.CostPerMl * 1000 * first.Printer.MaterialFactor)} / L";
                         string measured = m.Any(x => x.Resin.Plate.OverrideMl.HasValue) ? "*" : "";
@@ -404,10 +404,12 @@ public static class InvoicePdf
                     string division = $"{Format.Money(cost)} ÷ {Pieces(p.Quantity)} = ";
                     if (p.Quantity > 0)
                     {
-                        decimal exact = Math.Round(cost / p.Quantity, 3, MidpointRounding.AwayFromZero);
+                        // One more digit than the price shows: 3 for cents, 5 for sub-cent bulk prices.
+                        bool cents = Math.Round(p.UnitPrice, 2) == p.UnitPrice;
+                        decimal exact = Math.Round(cost / p.Quantity, cents ? 3 : 5, MidpointRounding.AwayFromZero);
                         division += exact == p.UnitPrice
-                            ? Format.Money(p.UnitPrice)
-                            : $"${exact:0.000}, rounded to {Format.Money(p.UnitPrice)}";
+                            ? Format.Rate(p.UnitPrice)
+                            : $"${exact.ToString(cents ? "0.000" : "0.00000", System.Globalization.CultureInfo.InvariantCulture)}, rounded to {Format.Rate(p.UnitPrice)}";
                     }
                     PerPieceRow(t, division, p.Quantity, p.UnitPrice, p.LineAmount);
 
@@ -490,7 +492,7 @@ public static class InvoicePdf
     private static string ResinLabel(ResinQuote rq, bool detailed)
     {
         string name = rq.Resin?.DisplayName ?? (string.IsNullOrWhiteSpace(rq.Plate.SlicerProfile) ? "Resin" : rq.Plate.SlicerProfile);
-        if (rq.Plate.CustomerSupplied) return $"{name} (shop supplied)";
+        if (rq.Plate.CustomerSupplied) return $"{name} (customer supplied)";
         if (rq.Resin is null && detailed) return $"{name} (no resin selected)";
         return name;
     }
@@ -510,7 +512,7 @@ public static class InvoicePdf
         string color = muted ? Muted : "#1A1A1A";
         t.Cell().Element(Cell).PaddingLeft(indent ? 12 : 0).Text(label).FontColor(color);
         t.Cell().Element(Cell).AlignRight().Text(qty).FontColor(color);
-        t.Cell().Element(Cell).AlignRight().Text(rate).FontColor(rate is "shop supplied" or "not set" ? Muted : color);
+        t.Cell().Element(Cell).AlignRight().Text(rate).FontColor(rate is "customer supplied" or "not set" ? Muted : color);
         t.Cell().Element(Cell).AlignRight().Text(Format.Money(amount)).FontColor(color);
     }
 
@@ -532,7 +534,7 @@ public static class InvoicePdf
             c.Item().Text(division).FontSize(8.5f).FontColor(Muted);
         });
         t.Cell().Element(Cell).AlignRight().AlignMiddle().Text($"{qty} pcs").SemiBold();
-        t.Cell().Element(Cell).AlignRight().AlignMiddle().Text($"{Format.Money(unit)} each").SemiBold();
+        t.Cell().Element(Cell).AlignRight().AlignMiddle().Text($"{Format.Rate(unit)} each").SemiBold();
         t.Cell().Element(Cell).AlignRight().AlignMiddle().Text(Format.Money(amount)).SemiBold();
     }
 

@@ -37,7 +37,7 @@ public partial class PartViewModel : ObservableObject
 
     internal void Refresh(PartQuote q)
     {
-        Summary = $"{q.Quantity} pcs x {Format.Money(q.UnitPrice)} = {Format.Money(q.LineAmount)}";
+        Summary = $"{q.Quantity} pcs x {Format.Rate(q.UnitPrice)} = {Format.Money(q.LineAmount)}";
         for (int i = 0; i < Plates.Count && i < q.Plates.Count; i++)
             Plates[i].Refresh(q.Plates[i]);
     }

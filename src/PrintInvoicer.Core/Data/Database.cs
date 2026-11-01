@@ -130,6 +130,7 @@ public class Database
         AddColumnIfMissing(c, "plates", "resin_id", "INTEGER");
         AddColumnIfMissing(c, "plates", "resin_customer_supplied", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing(c, "plates", "parts_confirmed", "INTEGER NOT NULL DEFAULT 1");
+        AddColumnIfMissing(c, "extra_costs", "charge_customer_material", "INTEGER NOT NULL DEFAULT 1");
 
         MovePrintingRatesToPrinter(c);
 
@@ -519,7 +520,7 @@ public class Database
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id, name, cost, basis, applies_to, active, notes FROM extra_costs ORDER BY id";
+        cmd.CommandText = "SELECT id, name, cost, basis, applies_to, active, notes, charge_customer_material FROM extra_costs ORDER BY id";
         using var r = cmd.ExecuteReader();
         var list = new List<ExtraCost>();
         while (r.Read())
@@ -533,6 +534,7 @@ public class Database
                 AppliesTo = r.IsDBNull(4) ? null : (PrintTechnology)r.GetInt32(4),
                 Active = r.GetInt64(5) != 0,
                 Notes = r.GetString(6),
+                ChargeCustomerMaterial = r.GetInt64(7) != 0,
             });
         }
         return list;
@@ -545,14 +547,15 @@ public class Database
         {
             ("$id", e.Id), ("$name", e.Name), ("$cost", Str(e.Cost)), ("$basis", (int)e.Basis),
             ("$applies", e.AppliesTo is PrintTechnology t ? (int)t : null), ("$active", e.Active ? 1 : 0), ("$notes", e.Notes),
+            ("$ccm", e.ChargeCustomerMaterial ? 1 : 0),
         };
         if (e.Id == 0)
             e.Id = Scalar<long>(c, """
-                INSERT INTO extra_costs(name, cost, basis, applies_to, active, notes)
-                VALUES ($name, $cost, $basis, $applies, $active, $notes) RETURNING id
+                INSERT INTO extra_costs(name, cost, basis, applies_to, active, notes, charge_customer_material)
+                VALUES ($name, $cost, $basis, $applies, $active, $notes, $ccm) RETURNING id
                 """, args);
         else
-            Exec(c, "UPDATE extra_costs SET name=$name, cost=$cost, basis=$basis, applies_to=$applies, active=$active, notes=$notes WHERE id=$id", args);
+            Exec(c, "UPDATE extra_costs SET name=$name, cost=$cost, basis=$basis, applies_to=$applies, active=$active, notes=$notes, charge_customer_material=$ccm WHERE id=$id", args);
     }
 
     /// <summary>Extra costs are re-applied from the current list whenever a job is priced, so deleting one is always safe.</summary>
