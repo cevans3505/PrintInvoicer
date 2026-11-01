@@ -30,13 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The README shows page 1 of a sample invoice as a PNG
   4. A maintainer runs one command and all three images are rebuilt offscreen (no window or dialog appears) from seeded sample data that uses only sample names such as "Harbor Dive Shop"
   5. The README explains how to run that command to regenerate the images
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans executed
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md - Tracer: job list picture through the one command (2x offscreen render, gated write, README section), then a paid job and fixed dates in SampleShop (SHOW-01, SHOW-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md - Job editor and invoice page 1 pictures on the same pipeline, the README regeneration note, AUDITING.md bullet and CI comment (SHOW-02, SHOW-03, SHOW-04, SHOW-05)
+- [x] 01-02-PLAN.md - Job editor and invoice page 1 pictures on the same pipeline, the README regeneration note, AUDITING.md bullet and CI comment (SHOW-02, SHOW-03, SHOW-04, SHOW-05)
 **UI hint**: yes
 
 ### Phase 2: Quick-Win Concern Fixes
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1, 2, 3, 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. README Showcase | 1/2 | In Progress | - |
+| 1. README Showcase | 2/2 | In Progress | - |
 | 2. Quick-Win Concern Fixes | 0/TBD | Not started | - |
 | 3. Data Safety Fixes | 0/TBD | Not started | - |
 | 4. Slice File Submissions | 0/TBD | Not started | - |
