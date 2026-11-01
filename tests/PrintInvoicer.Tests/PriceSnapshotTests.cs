@@ -117,6 +117,33 @@ public sealed class PriceSnapshotTests : IDisposable
     }
 
     [Fact]
+    public void Draft_reverted_by_an_older_version_is_finalized_at_todays_prices()
+    {
+        var (db, job) = Setup();
+        Finalize(db, job);
+        decimal sent = job.FinalizedTotal!.Value;
+
+        // Versions before 3.2 revert to draft without knowing about frozen prices, so they are left behind.
+        using (var c = new SqliteConnection($"Data Source={_path}"))
+        {
+            c.Open();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "UPDATE jobs SET finalized = 0, finalized_date = NULL, invoice_date = NULL";
+            cmd.ExecuteNonQuery();
+        }
+        ChangeEveryPrice(db);
+
+        var reopened = new Database(_path);
+        var draft = reopened.GetJobs().Single();
+        decimal today = Total(reopened, draft);
+        Assert.NotEqual(sent, today);
+
+        Finalize(reopened, draft);
+        Assert.Equal(today, draft.FinalizedTotal);
+        Assert.Equal(today, Total(reopened, reopened.GetJobs().Single()));
+    }
+
+    [Fact]
     public void Changed_finalized_job_is_flagged()
     {
         var (db, job) = Setup();

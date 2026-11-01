@@ -94,6 +94,26 @@ public sealed class BackupTests : IDisposable
     }
 
     [Fact]
+    public void Damaged_backup_is_refused_and_the_live_database_is_left_alone()
+    {
+        var db = new Database(DbPath);
+        for (int i = 0; i < 200; i++) db.SaveJob(new Job { Title = $"Job {i} " + new string('x', 500), InvoiceNumber = $"2026-{i:000}" });
+        var backup = DatabaseBackup.Manual(DbPath, Folder, new DateTime(2026, 10, 30, 9, 0, 0));
+
+        // Damage two pages in the middle, as a bad sector or a dropped network copy can. The header and table list
+        // are intact, so it still looks like a PrintInvoicer database.
+        var bytes = File.ReadAllBytes(backup);
+        for (int i = bytes.Length / 2; i < bytes.Length / 2 + 8192; i++) bytes[i] = 0xAB;
+        File.WriteAllBytes(backup, bytes);
+        Assert.True(DatabaseBackup.LooksLikePrintInvoicer(backup));
+
+        Assert.Throws<InvalidDataException>(() => DatabaseBackup.Restore(backup, DbPath, Folder, new DateTime(2026, 10, 30, 10, 0, 0)));
+
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(200, new Database(DbPath).GetJobs().Count);
+    }
+
+    [Fact]
     public void Backup_works_while_the_app_has_the_database_open()
     {
         var db = DbWithJob("Open");
