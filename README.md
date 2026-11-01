@@ -4,6 +4,44 @@ A Windows desktop app for invoicing 3D printing jobs on FDM and resin printers. 
 resin files, prices material, machine time, electricity and your own extra costs per plate, adds slicing, modeling and
 post-processing fees, and produces a PDF invoice plus an internal detail sheet.
 
+> [!IMPORTANT]
+> **Personal project, shared as-is.** I built PrintInvoicer for my own use, invoicing 3D printing work for a local
+> business. I'm sharing it publicly because I believe in open source and in sharing code for the benefit of everyone.
+> It is not a commercial product and is not actively maintained. I fix what I need, and may add things if enough people
+> ask, but there is no support commitment. It is provided under the [MIT license](LICENSE), "as is", without warranty
+> of any kind.
+
+> [!WARNING]
+> **AI use disclosure.** This application was written primarily by an AI model, Anthropic's Claude Opus 5.5, working
+> through Claude Code under my direction. I chose what to build, made the design decisions, and tested it on my own
+> jobs. I have years of coding experience and have reviewed the code before each release as responsibly as I can, but
+> I did not write most of it by hand, and my review is not a professional audit.
+>
+> **Checks that have been done:**
+> - Several hundred automated tests (pricing, file reading, storage, backups, and the app's windows and invoices), run
+>   on a Windows machine on GitHub for every change, and again before each release.
+> - Tests that feed the file readers hundreds of damaged, cut-off and oddly built files, to make sure a bad file gets
+>   a clear error instead of a crash or a wrong number on an invoice.
+> - A targeted, AI-performed bug hunt of the pricing, invoice and storage code. Each bug it found was proven with a
+>   failing test before being fixed.
+> - Real use: the app's totals were checked against my original costing spreadsheet and my own real jobs.
+> - A check that the code and releases contain no personal data, and a review of each release zip before publishing.
+>
+> **Checks that have not been done:**
+> - No independent human code review or professional security audit.
+> - Not tested on a wide range of PCs, Windows versions or setups. FDM file reading has only been tested with files
+>   from Bambu Studio for one printer, and resin file reading with a handful of ELEGOO `.goo` files.
+> - Not checked for tax, accounting or legal correctness. It does not handle sales tax or VAT, and amounts are in US
+>   dollars.
+> - The program is not code-signed, so Windows will warn that it comes from an unknown publisher.
+>
+> **What it does with your data:** everything stays on your PC, in `Documents\PrintInvoicer`. The only network access
+> is an optional once-a-day check of this repository's releases for a newer version, which can be turned off in
+> Settings. There is no tracking or telemetry.
+>
+> **Use it at your own risk.** Review the code yourself before relying on it, and check its invoices before you send
+> them. If you find a problem, please [open an issue](https://github.com/cevans3505/PrintInvoicer/issues).
+
 ## Install or update
 
 From Windows PowerShell, with PrintInvoicer closed:
