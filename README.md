@@ -14,8 +14,10 @@ post-processing fees, and produces a PDF invoice plus an internal detail sheet.
 > [!WARNING]
 > **AI use disclosure.** This application was written primarily by an AI model, Anthropic's Claude Opus 5.5, working
 > through Claude Code under my direction. I chose what to build, made the design decisions, and tested it on my own
-> jobs. I have years of coding experience and have reviewed the code before each release as responsibly as I can, but
-> I did not write most of it by hand, and my review is not a professional audit.
+> jobs. I have years of coding experience, but I did not write most of this code by hand, and I have **not** reviewed
+> it line by line. My review before each release is high level: reading through the changes to check that they make
+> sense and that nothing looks out of place. That is not a full code review, and it is not a security audit, so please
+> don't treat it as one.
 >
 > **Checks that have been done:**
 > - Several hundred automated tests (pricing, file reading, storage, backups, and the app's windows and invoices), run
